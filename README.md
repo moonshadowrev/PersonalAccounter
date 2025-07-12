@@ -2,6 +2,24 @@
 
 A comprehensive PHP-based personal and business accounting management system with powerful expense tracking, subscription management, and reporting capabilities.
 
+# Quick install 
+```bash
+git clone https://github.com/moonshadowrev/PersonalAccounter
+cd PersonalAccounter
+bash ./setup.sh
+```
+It will even install docker if you don't have it
+
+# Demo Access
+
+You can see [PersonalAccounter](https://accounting-panel.overlord.team/login) in LiveAction
+
+Use this Credentials for testing:
+```bash
+E-Mail : admin@example.com
+Password : 123456789
+```
+
 ## 🌟 Features
 
 ### 💰 **Expense Management**
