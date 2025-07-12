@@ -1,0 +1,17 @@
+{
+    "name": "personalaccounter/accounting-panel",
+    "description": "PersonalAccounter - A comprehensive PHP-based personal and business accounting management system",
+    "type": "project",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "vlucas/phpdotenv": "^5.6",
+        "catfan/medoo": "^2.2",
+        "bramus/router": "^1.6",
+        "monolog/monolog": "^3.9",
+        "phpoffice/phpspreadsheet": "^4.3",
+        "pragmarx/google2fa": "^8.0",
+        "endroid/qr-code": "^5.0",
+        "zircote/swagger-php": "^4.8",
+        "doctrine/annotations": "^2.0"
+    }
+}

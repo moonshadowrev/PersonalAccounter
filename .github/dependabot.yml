@@ -1,0 +1,115 @@
+
+version: 2
+updates:
+  # Enable version updates for Composer
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    # Increase the number of open pull requests for Composer
+    open-pull-requests-limit: 10
+    # Allow both direct and indirect updates
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Group security updates
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      minor-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Reviewers for dependency updates
+    reviewers:
+      - "moonshadowrev"
+    # Assignees for dependency updates  
+    assignees:
+      - "moonshadowrev"
+    # Commit message prefix
+    commit-message:
+      prefix: "composer"
+      prefix-development: "composer-dev"
+      include: "scope"
+    # Labels to apply to pull requests
+    labels:
+      - "dependencies"
+      - "composer"
+      - "automated"
+    # Branch to target for pull requests
+    target-branch: "main"
+    # Rebase strategy
+    rebase-strategy: "auto"
+    # Ignore specific dependencies if needed
+    ignore:
+      # Ignore major version updates for critical dependencies
+      - dependency-name: "php"
+        update-types: ["version-update:semver-major"]
+      # Example: ignore a specific package
+      # - dependency-name: "vendor/package-name"
+      #   versions: ["1.x", "2.x"]
+    # Milestone to add to pull requests
+    # milestone: 1
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "automated"
+    reviewers:
+      - "moonshadowrev"
+    assignees:
+      - "moonshadowrev"
+
+  # Enable version updates for Docker Compose
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "automated"
+
+  # Enable version updates for GitHub Actions (if you add any)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "github-actions"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"

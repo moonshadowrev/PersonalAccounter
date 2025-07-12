@@ -1,0 +1,153 @@
+# Environment files (contains sensitive data)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Logs and runtime data
+logs/
+*.log
+sessions/
+public/uploads/
+tmp/
+temp/
+
+# Composer dependencies
+vendor/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-*
+*.code-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Docker runtime files
+docker-compose.override.yml
+.docker/
+
+# Database files and backups
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+backups/
+database/backups/
+
+# Cache and temporary files
+cache/
+.cache/
+*.cache
+.tmp/
+
+# Node modules (if any frontend build tools are used)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
+
+# PHP specific
+*.php~
+.phpunit.result.cache
+phpunit.xml
+phpunit.xml.dist
+
+# Coverage reports
+coverage/
+clover.xml
+
+# Build artifacts
+dist/
+build/
+
+# Archives
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Configuration files that might contain sensitive data
+config/database.php
+config/mail.php
+config/app.local.php
+
+# Test files
+tests/temp/
+tests/coverage/
+
+# Docker volumes data (if mounted locally)
+db_data/
+app_logs/
+app_sessions/
+app_uploads/
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# API keys and secrets
+secrets/
+.secrets/
+
+# Local development files
+.local/
+local/
+
+# Error logs
+error_log
+php_errors.log
+
+# Session files
+sess_*
+
+# Temporary upload files
+upload_tmp/
+
+# Generated documentation
+docs/generated/
+api-docs/
+
+# Development tools
+.php_cs.cache
+.phpstan.cache
+.psalm/cache/
+
+# Deployment scripts (if they contain sensitive info)
+deploy.sh
+deploy/
+
+# Local Docker overrides
+docker-compose.local.yml
+docker-compose.dev.yml
+
+# Git patches
+*.patch
+*.diff
+
+# Runtime configuration
+runtime/

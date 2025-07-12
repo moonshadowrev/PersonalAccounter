@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  # MariaDB Database
+  database:
+    image: mariadb:10.11
+    container_name: accounting_panel_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_123}
+      MYSQL_DATABASE: ${DB_NAME:-accounting_panel}
+      MYSQL_USER: ${DB_USER:-accounting_user}
+      MYSQL_PASSWORD: ${DB_PASS:-user_password_123}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mariadb/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - accounting_network
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # PHP-FPM Application
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: accounting_panel_app
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_URL=${APP_URL:-http://localhost}
+      - APP_DOMAIN=${APP_DOMAIN:-localhost}
+      - APP_TIMEZONE=${APP_TIMEZONE:-UTC}
+      - DB_HOST=database
+      - DB_NAME=${DB_NAME:-accounting_panel}
+      - DB_USER=${DB_USER:-accounting_user}
+      - DB_PASS=${DB_PASS:-user_password_123}
+      - DB_PORT=3306
+      - SESSION_LIFETIME=${SESSION_LIFETIME:-0}
+      - SESSION_SECURE=${SESSION_SECURE:-false}
+      - SESSION_SAMESITE=${SESSION_SAMESITE:-Lax}
+      - ADMIN_NAME=${ADMIN_NAME:-Admin}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@localhost}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+    volumes:
+      - ./:/var/www/html:delegated
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+      - app_logs:/var/www/html/logs
+      - app_sessions:/var/www/html/sessions
+      - app_uploads:/var/www/html/public/uploads
+    networks:
+      - accounting_network
+    healthcheck:
+      test: ["CMD-SHELL", "pidof php-fpm"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Caddy Web Server
+  caddy:
+    image: caddy:2.7-alpine
+    container_name: accounting_panel_caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./:/var/www/html:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - accounting_network
+    environment:
+      - DOMAIN=${APP_DOMAIN:-localhost}
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.2
+    container_name: accounting_panel_phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      - database
+    environment:
+      PMA_HOST: database
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_123}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_123}
+      UPLOAD_LIMIT: 64M
+      MEMORY_LIMIT: 256M
+    ports:
+      - "8080:80"
+    networks:
+      - accounting_network
+
+  # Cron Service for Scheduled Tasks
+  cron:
+    build: 
+      context: .
+      dockerfile: docker/cron/Dockerfile
+    container_name: accounting_panel_cron
+    restart: unless-stopped
+    depends_on:
+      - app
+      - database
+    environment:
+      - DB_HOST=database
+      - DB_NAME=${DB_NAME:-accounting_panel}
+      - DB_USER=${DB_USER:-accounting_user}
+      - DB_PASS=${DB_PASS:-user_password_123}
+    volumes:
+      - ./:/var/www/html:delegated
+      - app_logs:/var/www/html/logs
+    networks:
+      - accounting_network
+
+networks:
+  accounting_network:
+    driver: bridge
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:
+  app_logs:
+  app_sessions:
+  app_uploads: 

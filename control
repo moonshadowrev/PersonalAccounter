@@ -1,0 +1,1095 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/database/Migration.php';
+
+use Medoo\Medoo;
+
+class Control
+{
+    private $database;
+    private $config;
+    
+    public function __construct()
+    {
+        // Load environment variables
+        if (file_exists(__DIR__ . '/.env')) {
+            $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+            $dotenv->load();
+        }
+        
+        // Load configuration
+        $this->config = require __DIR__ . '/config/app.php';
+        
+        // Initialize database connection
+        $this->database = new Medoo($this->config['database']);
+        
+        // Ensure migrations table exists
+        $this->ensureMigrationsTable();
+    }
+    
+    public function run($args)
+    {
+        if (count($args) < 2) {
+            $this->showHelp();
+            return;
+        }
+        
+        $command = $args[1];
+        $subCommand = $args[2] ?? null;
+        
+        switch ($command) {
+            case 'migrate':
+                $this->handleMigrate($subCommand, array_slice($args, 3));
+                break;
+            case 'make':
+                $this->handleMake($subCommand, array_slice($args, 3));
+                break;
+            case 'user':
+                $this->handleUser($subCommand, array_slice($args, 3));
+                break;
+            case 'db':
+                $this->handleDatabase($subCommand, array_slice($args, 3));
+                break;
+            case 'faker':
+                $this->handleFaker($subCommand, array_slice($args, 3));
+                break;
+            case 'cache':
+                $this->handleCache($subCommand);
+                break;
+            case 'serve':
+                $this->handleServe($subCommand);
+                break;
+            case 'schedule':
+                $this->handleSchedule($subCommand, array_slice($args, 3));
+                break;
+            case 'help':
+            case '--help':
+            case '-h':
+                $this->showHelp();
+                break;
+            default:
+                $this->error("Unknown command: {$command}");
+                $this->showHelp();
+        }
+    }
+    
+    private function ensureMigrationsTable()
+    {
+        try {
+            $this->database->query("
+                CREATE TABLE IF NOT EXISTS `migrations` (
+                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `migration` varchar(255) NOT NULL,
+                    `batch` int(11) NOT NULL,
+                    `executed_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+        } catch (Exception $e) {
+            $this->error("Failed to create migrations table: " . $e->getMessage());
+        }
+    }
+    
+    private function handleMigrate($subCommand, $args)
+    {
+        switch ($subCommand) {
+            case 'run':
+            case null:
+                $this->runMigrations();
+                break;
+            case 'fresh':
+                $this->freshMigrations();
+                break;
+            case 'rollback':
+                $this->rollbackMigrations($args);
+                break;
+            case 'status':
+                $this->migrationStatus();
+                break;
+            case 'reset':
+                $this->resetMigrations();
+                break;
+            default:
+                $this->error("Unknown migrate command: {$subCommand}");
+                $this->info("Available migrate commands: run, fresh, rollback, status, reset");
+        }
+    }
+    
+    private function handleMake($subCommand, $args)
+    {
+        switch ($subCommand) {
+            case 'migration':
+                $this->makeMigration($args);
+                break;
+            default:
+                $this->error("Unknown make command: {$subCommand}");
+                $this->info("Available make commands: migration");
+        }
+    }
+    
+    private function handleUser($subCommand, $args)
+    {
+        switch ($subCommand) {
+            case 'create':
+                $this->createUser($args);
+                break;
+            case 'list':
+                $this->listUsers();
+                break;
+            case 'delete':
+                $this->deleteUser($args);
+                break;
+            case 'admin':
+                $this->createAdminUser();
+                break;
+            default:
+                $this->error("Unknown user command: {$subCommand}");
+                $this->info("Available user commands: create, list, delete, admin");
+        }
+    }
+    
+    private function handleDatabase($subCommand, $args)
+    {
+        switch ($subCommand) {
+            case 'seed':
+                $this->seedDatabase();
+                break;
+            case 'reset':
+                $this->resetDatabase();
+                break;
+            case 'status':
+                $this->databaseStatus();
+                break;
+            default:
+                $this->error("Unknown database command: {$subCommand}");
+                $this->info("Available database commands: seed, reset, status");
+        }
+    }
+    
+    private function handleFaker($subCommand, $args)
+    {
+        // Load the faker class
+        require_once __DIR__ . '/database/faker.php';
+        $faker = new DatabaseFaker($this->database);
+        
+        switch ($subCommand) {
+            case 'generate':
+                $this->generateFakeData($faker, $args);
+                break;
+            case 'reset':
+                $faker->resetDatabase();
+                $this->success("Fake data cleared successfully!");
+                break;
+            case 'summary':
+                $faker->printSummary();
+                break;
+            case 'users':
+                $count = isset($args[0]) ? (int)$args[0] : 10;
+                $faker->generateUsers($count);
+                break;
+            case 'cards':
+                $count = isset($args[0]) ? (int)$args[0] : 20;
+                $faker->generateCreditCards($count);
+                break;
+            case 'subscriptions':
+                $count = isset($args[0]) ? (int)$args[0] : 50;
+                $faker->generateSubscriptions($count);
+                break;
+            case 'categories':
+                $count = isset($args[0]) ? (int)$args[0] : 10;
+                $faker->generateCategories($count);
+                break;
+            case 'tags':
+                $count = isset($args[0]) ? (int)$args[0] : 10;
+                $faker->generateTags($count);
+                break;
+            case 'bank-accounts':
+                $count = isset($args[0]) ? (int)$args[0] : 12;
+                $faker->generateBankAccounts($count);
+                break;
+            case 'crypto-wallets':
+                $count = isset($args[0]) ? (int)$args[0] : 20;
+                $faker->generateCryptoWallets($count);
+                break;
+            case 'expenses':
+                $count = isset($args[0]) ? (int)$args[0] : 50;
+                $faker->generateExpenses($count);
+                break;
+            case 'all':
+                $this->generateAllFakeData($faker, $args);
+                break;
+            default:
+                $this->error("Unknown faker command: {$subCommand}");
+                $this->info("Available faker commands: generate, reset, summary, users, cards, subscriptions, categories, tags, bank-accounts, crypto-wallets, expenses, all");
+        }
+    }
+    
+    private function generateFakeData($faker, $args)
+    {
+        // Parse arguments for custom counts
+        $users = $this->getArgValue($args, '--users', 10);
+        $cards = $this->getArgValue($args, '--cards', 20);
+        $subscriptions = $this->getArgValue($args, '--subscriptions', 50);
+        $categories = $this->getArgValue($args, '--categories', 10);
+        $tags = $this->getArgValue($args, '--tags', 10);
+        $bankAccounts = $this->getArgValue($args, '--bank-accounts', 12);
+        $cryptoWallets = $this->getArgValue($args, '--crypto-wallets', 20);
+        $expenses = $this->getArgValue($args, '--expenses', 50);
+        
+        $this->info("Generating fake data with custom counts...");
+        $this->info("Users: {$users}, Cards: {$cards}, Subscriptions: {$subscriptions}");
+        $this->info("Categories: {$categories}, Tags: {$tags}, Bank Accounts: {$bankAccounts}");
+        $this->info("Crypto Wallets: {$cryptoWallets}, Expenses: {$expenses}");
+        
+        $faker->generateAll($users, $cards, $subscriptions, $categories, $tags, $bankAccounts, $cryptoWallets, $expenses);
+    }
+    
+    private function generateAllFakeData($faker, $args)
+    {
+        $this->info("Generating comprehensive fake data with default counts...");
+        $faker->generateAll();
+    }
+    
+    private function getArgValue($args, $key, $default)
+    {
+        foreach ($args as $arg) {
+            if (strpos($arg, $key . '=') === 0) {
+                return (int)substr($arg, strlen($key) + 1);
+            }
+        }
+        return $default;
+    }
+    
+    private function handleCache($subCommand)
+    {
+        switch ($subCommand) {
+            case 'clear':
+                $this->clearCache();
+                break;
+            default:
+                $this->error("Unknown cache command: {$subCommand}");
+                $this->info("Available cache commands: clear");
+        }
+    }
+    
+    private function handleServe($port = null)
+    {
+        $port = $port ?? '8000';
+        $this->info("Starting development server on http://localhost:{$port}");
+        $this->info("Press Ctrl+C to stop the server");
+        
+        $command = "php -S localhost:{$port} -t public";
+        passthru($command);
+    }
+    
+    private function handleSchedule($subCommand, $args)
+    {
+        require_once __DIR__ . '/app/Services/ScheduleService.php';
+        require_once __DIR__ . '/app/Services/CronScheduler.php';
+        
+        $scheduleService = new ScheduleService($this->database);
+        $cronScheduler = new CronScheduler($this->database);
+        
+        switch ($subCommand) {
+            case 'run':
+                $this->runScheduledPayments($scheduleService);
+                break;
+            case 'cron':
+                $this->runConsolidatedCron($cronScheduler);
+                break;
+            case 'upcoming':
+                $this->showUpcomingPayments($scheduleService, $args);
+                break;
+            case 'expired':
+                $this->handleExpiredSubscriptions($scheduleService);
+                break;
+            case 'stats':
+                $this->showScheduleStats($scheduleService);
+                break;
+            case 'status':
+                $this->showCronStatus($cronScheduler);
+                break;
+            default:
+                $this->error("Unknown schedule command: {$subCommand}");
+                $this->info("Available schedule commands: run, cron, upcoming, expired, stats, status");
+                $this->info("Note: 'retry' command has been removed as it's no longer needed.");
+        }
+    }
+    
+    private function getMigrationFiles()
+    {
+        $migrationPath = __DIR__ . '/database/migrations';
+        $files = glob($migrationPath . '/*.php');
+        sort($files);
+        return $files;
+    }
+    
+    private function getExecutedMigrations()
+    {
+        try {
+            return $this->database->select('migrations', 'migration');
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+    
+    private function runMigrations()
+    {
+        $this->info("Running database migrations...");
+        
+        $migrationFiles = $this->getMigrationFiles();
+        $executedMigrations = $this->getExecutedMigrations();
+        
+        if (empty($migrationFiles)) {
+            $this->warning("No migration files found.");
+            return;
+        }
+        
+        $batch = $this->getNextBatchNumber();
+        $executed = 0;
+        
+        foreach ($migrationFiles as $file) {
+            $migrationName = basename($file, '.php');
+            
+            if (in_array($migrationName, $executedMigrations)) {
+                continue; // Skip already executed migrations
+            }
+            
+            try {
+                require_once $file;
+                
+                // Get class name from file name
+                $className = $this->getClassNameFromFile($migrationName);
+                
+                if (!class_exists($className)) {
+                    $this->error("Migration class {$className} not found in {$file}");
+                    continue;
+                }
+                
+                $migration = new $className($this->database);
+                
+                $this->info("Migrating: {$migrationName}");
+                $migration->up();
+                
+                // Record migration
+                $this->database->insert('migrations', [
+                    'migration' => $migrationName,
+                    'batch' => $batch
+                ]);
+                
+                $this->success("Migrated: {$migrationName}");
+                $executed++;
+                
+            } catch (Exception $e) {
+                $this->error("Migration failed for {$migrationName}: " . $e->getMessage());
+                break;
+            }
+        }
+        
+        if ($executed > 0) {
+            $this->success("Executed {$executed} migrations successfully!");
+            
+            // Create admin user after migrations
+            $this->createAdminUser();
+        } else {
+            $this->info("Nothing to migrate.");
+        }
+    }
+    
+    private function freshMigrations()
+    {
+        $this->info("Running fresh migrations (dropping all tables)...");
+        
+        try {
+            // Get all migration files in reverse order for rollback
+            $migrationFiles = array_reverse($this->getMigrationFiles());
+            
+            foreach ($migrationFiles as $file) {
+                $migrationName = basename($file, '.php');
+                
+                try {
+                    require_once $file;
+                    $className = $this->getClassNameFromFile($migrationName);
+                    
+                    if (class_exists($className)) {
+                        $migration = new $className($this->database);
+                        $this->info("Rolling back: {$migrationName}");
+                        $migration->down();
+                    }
+                } catch (Exception $e) {
+                    // Continue with other migrations even if one fails
+                    $this->warning("Warning - Failed to rollback {$migrationName}: " . $e->getMessage());
+                }
+            }
+            
+            // Clear migrations table safely
+            try {
+                $this->database->delete('migrations', ['id[>]' => 0]);
+            } catch (Exception $e) {
+                $this->warning("Could not clear migrations table: " . $e->getMessage());
+            }
+            
+            $this->success("All tables dropped successfully!");
+            
+            // Run migrations again
+            $this->runMigrations();
+            
+        } catch (Exception $e) {
+            $this->error("Fresh migration failed: " . $e->getMessage());
+        }
+    }
+    
+    private function rollbackMigrations($args)
+    {
+        $steps = isset($args[0]) ? (int)$args[0] : 1;
+        
+        $this->info("Rolling back {$steps} migration batch(es)...");
+        
+        try {
+            // Get the last batch(es) to rollback
+            $batches = $this->database->select('migrations', 'batch', [
+                'ORDER' => ['batch' => 'DESC'],
+                'GROUP' => 'batch',
+                'LIMIT' => $steps
+            ]);
+            
+            if (empty($batches)) {
+                $this->info("Nothing to rollback.");
+                return;
+            }
+            
+            foreach ($batches as $batch) {
+                $migrations = $this->database->select('migrations', '*', [
+                    'batch' => $batch,
+                    'ORDER' => ['id' => 'DESC']
+                ]);
+                
+                foreach ($migrations as $migrationRecord) {
+                    $migrationName = $migrationRecord['migration'];
+                    $file = __DIR__ . '/database/migrations/' . $migrationName . '.php';
+                    
+                    if (file_exists($file)) {
+                        require_once $file;
+                        $className = $this->getClassNameFromFile($migrationName);
+                        
+                        if (class_exists($className)) {
+                            $migration = new $className($this->database);
+                            
+                            $this->info("Rolling back: {$migrationName}");
+                            $migration->down();
+                            
+                            // Remove from migrations table
+                            $this->database->delete('migrations', ['id' => $migrationRecord['id']]);
+                            
+                            $this->success("Rolled back: {$migrationName}");
+                        }
+                    }
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->error("Rollback failed: " . $e->getMessage());
+        }
+    }
+    
+    private function migrationStatus()
+    {
+        $migrationFiles = $this->getMigrationFiles();
+        $executedMigrations = $this->getExecutedMigrations();
+        
+        $this->info("Migration Status:");
+        $this->info(str_repeat("-", 60));
+        $this->info(sprintf("%-40s %s", "Migration", "Status"));
+        $this->info(str_repeat("-", 60));
+        
+        foreach ($migrationFiles as $file) {
+            $migrationName = basename($file, '.php');
+            $status = in_array($migrationName, $executedMigrations) ? "✓ Executed" : "✗ Pending";
+            $color = in_array($migrationName, $executedMigrations) ? "\033[32m" : "\033[31m";
+            
+            echo sprintf("%-40s %s%s\033[0m\n", $migrationName, $color, $status);
+        }
+    }
+    
+    private function resetMigrations()
+    {
+        $this->info("Resetting all migrations...");
+        $this->freshMigrations();
+        $this->seedDatabase();
+    }
+    
+    private function makeMigration($args)
+    {
+        if (empty($args[0])) {
+            $this->error("Migration name is required.");
+            $this->info("Usage: php control.php make migration <name>");
+            return;
+        }
+        
+        $name = $args[0];
+        $timestamp = date('Y_m_d_His');
+        $fileName = sprintf("%s_%s.php", $timestamp, $name);
+        $className = $this->getClassNameFromFile($timestamp . '_' . $name);
+        
+        $template = $this->getMigrationTemplate($className, $name);
+        
+        $filePath = __DIR__ . '/database/migrations/' . $fileName;
+        
+        if (file_put_contents($filePath, $template)) {
+            $this->success("Migration created: {$fileName}");
+        } else {
+            $this->error("Failed to create migration file.");
+        }
+    }
+    
+    private function getMigrationTemplate($className, $name)
+    {
+        return "<?php
+
+require_once __DIR__ . '/../Migration.php';
+
+class {$className} extends Migration
+{
+    public function getName()
+    {
+        return '" . strtolower($name) . "';
+    }
+    
+    public function up()
+    {
+        // Add your migration logic here
+        // Example:
+        // \$this->createTable('table_name', function(\$table) {
+        //     \$table->id();
+        //     \$table->string('name');
+        //     \$table->timestamps();
+        // });
+    }
+    
+    public function down()
+    {
+        // Add your rollback logic here
+        // Example:
+        // \$this->dropTable('table_name');
+    }
+}";
+    }
+    
+    private function getClassNameFromFile($fileName)
+    {
+        // Convert snake_case to PascalCase
+        $parts = explode('_', $fileName);
+        
+        // Remove numeric prefix (like 001, 002, etc.)
+        if (count($parts) > 0 && is_numeric($parts[0])) {
+            $parts = array_slice($parts, 1);
+        }
+        
+        return implode('', array_map('ucfirst', $parts));
+    }
+    
+    private function getNextBatchNumber()
+    {
+        try {
+            $result = $this->database->max('migrations', 'batch');
+            return (int)($result ?? 0) + 1;
+        } catch (Exception $e) {
+            return 1;
+        }
+    }
+    
+    private function createUser($args)
+    {
+        if (count($args) < 3) {
+            $this->error("Usage: php control.php user create <name> <email> <password> [role]");
+            return;
+        }
+        
+        $name = $args[0];
+        $email = $args[1];
+        $password = $args[2];
+        $role = $args[3] ?? 'admin';
+        
+        if (!in_array($role, ['admin', 'superadmin'])) {
+            $this->error("Invalid role. Must be 'admin' or 'superadmin'");
+            return;
+        }
+        
+        try {
+            // Check if user already exists
+            $existingUser = $this->database->get('users', '*', ['email' => $email]);
+            
+            if ($existingUser) {
+                $this->error("User with email '{$email}' already exists.");
+                return;
+            }
+            
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            
+            $this->database->insert('users', [
+                'name' => $name,
+                'email' => $email,
+                'password' => $hashedPassword,
+                'role' => $role
+            ]);
+            
+            $this->success("User '{$name}' created successfully with role '{$role}'!");
+            
+        } catch (Exception $e) {
+            $this->error("Failed to create user: " . $e->getMessage());
+        }
+    }
+    
+    private function createAdminUser()
+    {
+        try {
+            // Check if any admin user already exists
+            $existingAdmin = $this->database->get('users', '*', ['role' => 'superadmin']);
+            
+            if ($existingAdmin) {
+                $this->info("Admin user already exists: " . $existingAdmin['email']);
+                return;
+            }
+            
+            // Interactive admin user creation
+            $this->info("No admin user found. Let's create one:");
+            
+            $name = $this->promptInput("Enter admin name", "Admin");
+            $email = $this->promptInput("Enter admin email");
+            
+            // Validate email format
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->error("Invalid email format.");
+                return;
+            }
+            
+            // Check if user with this email already exists
+            $existingUser = $this->database->get('users', '*', ['email' => $email]);
+            if ($existingUser) {
+                $this->error("User with email '{$email}' already exists.");
+                return;
+            }
+            
+            $password = $this->promptPassword("Enter admin password");
+            
+            if (strlen($password) < 8) {
+                $this->error("Password must be at least 8 characters long.");
+                return;
+            }
+            
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            $this->database->insert('users', [
+                'name' => $name,
+                'email' => $email,
+                'password' => $hashedPassword,
+                'role' => 'superadmin'
+            ]);
+            
+            $this->success("Admin user created successfully!");
+            $this->info("Email: {$email}");
+            
+        } catch (Exception $e) {
+            $this->error("Failed to create admin user: " . $e->getMessage());
+        }
+    }
+    
+    private function listUsers()
+    {
+        try {
+            $users = $this->database->select('users', ['id', 'name', 'email', 'role', 'created_at']);
+            
+            if (empty($users)) {
+                $this->info("No users found.");
+                return;
+            }
+            
+            $this->info("Users List:");
+            $this->info(str_repeat("-", 80));
+            $this->info(sprintf("%-5s %-20s %-30s %-12s %-20s", "ID", "Name", "Email", "Role", "Created At"));
+            $this->info(str_repeat("-", 80));
+            
+            foreach ($users as $user) {
+                $this->info(sprintf(
+                    "%-5s %-20s %-30s %-12s %-20s",
+                    $user['id'],
+                    substr($user['name'], 0, 20),
+                    substr($user['email'], 0, 30),
+                    $user['role'],
+                    $user['created_at']
+                ));
+            }
+            
+        } catch (Exception $e) {
+            $this->error("Failed to list users: " . $e->getMessage());
+        }
+    }
+    
+    private function deleteUser($args)
+    {
+        if (count($args) < 1) {
+            $this->error("Usage: php control.php user delete <email>");
+            return;
+        }
+        
+        $email = $args[0];
+        
+        try {
+            $user = $this->database->get('users', '*', ['email' => $email]);
+            
+            if (!$user) {
+                $this->error("User with email '{$email}' not found.");
+                return;
+            }
+            
+            $this->database->delete('users', ['email' => $email]);
+            $this->success("User '{$email}' deleted successfully!");
+            
+        } catch (Exception $e) {
+            $this->error("Failed to delete user: " . $e->getMessage());
+        }
+    }
+    
+    private function seedDatabase()
+    {
+        $this->info("Seeding database with sample data...");
+        
+        try {
+            // Create sample users
+            $users = [
+                ['name' => 'John Doe', 'email' => 'john@example.com', 'role' => 'admin'],
+                ['name' => 'Jane Smith', 'email' => 'jane@example.com', 'role' => 'admin']
+            ];
+            
+            foreach ($users as $userData) {
+                $existingUser = $this->database->get('users', '*', ['email' => $userData['email']]);
+                if (!$existingUser) {
+                    $this->database->insert('users', [
+                        'name' => $userData['name'],
+                        'email' => $userData['email'],
+                        'password' => password_hash('password123', PASSWORD_DEFAULT),
+                        'role' => $userData['role']
+                    ]);
+                }
+            }
+            
+            $this->success("Database seeded successfully!");
+            
+        } catch (Exception $e) {
+            $this->error("Failed to seed database: " . $e->getMessage());
+        }
+    }
+    
+    private function resetDatabase()
+    {
+        $this->info("Resetting database...");
+        $this->freshMigrations();
+        $this->seedDatabase();
+    }
+    
+    private function databaseStatus()
+    {
+        try {
+            $tables = ['users', 'credit_cards', 'subscriptions', 'transactions'];
+            
+            $this->info("Database Status:");
+            $this->info(str_repeat("-", 40));
+            
+            foreach ($tables as $table) {
+                try {
+                    $count = $this->database->count($table);
+                    $this->info(sprintf("%-20s: %d records", ucfirst($table), $count));
+                } catch (Exception $e) {
+                    $this->info(sprintf("%-20s: Table not found", ucfirst($table)));
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->error("Failed to get database status: " . $e->getMessage());
+        }
+    }
+    
+    private function clearCache()
+    {
+        $this->info("Clearing application cache...");
+        
+        // Clear session files
+        $sessionPath = __DIR__ . '/sessions';
+        if (is_dir($sessionPath)) {
+            $files = glob($sessionPath . '/*');
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
+            }
+        }
+        
+        // Clear log files (optional)
+        $logPath = __DIR__ . '/logs';
+        if (is_dir($logPath)) {
+            $files = glob($logPath . '/*.log');
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    file_put_contents($file, '');
+                }
+            }
+        }
+        
+        $this->success("Cache cleared successfully!");
+    }
+    
+    private function runScheduledPayments($scheduleService)
+    {
+        $this->info("Running scheduled payments...");
+        
+        try {
+            $result = $scheduleService->processDuePayments();
+            
+            $this->info("Payment processing completed:");
+            $this->info("- Total due: " . $result['total_due']);
+            $this->info("- Processed: " . $result['processed']);
+            $this->info("- Failed: " . $result['failed']);
+            
+            if ($result['processed'] > 0) {
+                $this->success("Successfully processed {$result['processed']} payments!");
+            }
+            
+            if ($result['failed'] > 0) {
+                $this->warning("{$result['failed']} payments failed.");
+            }
+            
+            if (isset($result['error'])) {
+                $this->error("Error: " . $result['error']);
+            }
+            
+        } catch (Exception $e) {
+            $this->error("Failed to run scheduled payments: " . $e->getMessage());
+        }
+    }
+    
+    private function showUpcomingPayments($scheduleService, $args)
+    {
+        $days = isset($args[0]) ? (int)$args[0] : 7;
+        
+        $this->info("Showing upcoming payments for next {$days} days...");
+        
+        try {
+            $result = $scheduleService->processUpcomingPayments($days);
+            
+            $this->info("Upcoming payments: " . $result['upcoming_count']);
+            $this->info("Date range: " . $result['date_range']['from'] . " to " . $result['date_range']['to']);
+            
+            if (!empty($result['subscriptions'])) {
+                $this->info(str_repeat("-", 80));
+                $this->info(sprintf("%-5s %-30s %-15s %-15s %-15s", "ID", "Name", "Amount", "Next Payment", "Billing Cycle"));
+                $this->info(str_repeat("-", 80));
+                
+                foreach ($result['subscriptions'] as $subscription) {
+                    $this->info(sprintf(
+                        "%-5s %-30s %-15s %-15s %-15s",
+                        $subscription['id'],
+                        substr($subscription['name'], 0, 30),
+                        $subscription['amount'] . ' ' . $subscription['currency'],
+                        $subscription['next_payment_date'],
+                        $subscription['billing_cycle']
+                    ));
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->error("Failed to get upcoming payments: " . $e->getMessage());
+        }
+    }
+    
+    private function handleExpiredSubscriptions($scheduleService)
+    {
+        $this->info("Handling expired subscriptions...");
+        
+        try {
+            $result = $scheduleService->handleExpiredSubscriptions();
+            
+            $this->info("Expired subscriptions handled: " . $result['expired_count']);
+            
+            if ($result['expired_count'] > 0) {
+                $this->success("Marked {$result['expired_count']} subscriptions as expired.");
+            } else {
+                $this->info("No subscriptions to expire.");
+            }
+            
+            if (isset($result['error'])) {
+                $this->error("Error: " . $result['error']);
+            }
+            
+        } catch (Exception $e) {
+            $this->error("Failed to handle expired subscriptions: " . $e->getMessage());
+        }
+    }
+    
+    private function runConsolidatedCron($cronScheduler)
+    {
+        $this->info("Running consolidated cron scheduler...");
+        
+        try {
+            $cronScheduler->run();
+            $this->success("Cron scheduler completed successfully!");
+            
+        } catch (Exception $e) {
+            $this->error("Failed to run cron scheduler: " . $e->getMessage());
+        }
+    }
+    
+    private function showCronStatus($cronScheduler)
+    {
+        $this->info("Cron Scheduler Status:");
+        $this->info(str_repeat("-", 60));
+        
+        try {
+            $upcomingTasks = $cronScheduler->getUpcomingTasks();
+            
+            foreach ($upcomingTasks as $task) {
+                $this->info(sprintf("%-35s: %s (%s)", 
+                    $task['name'], 
+                    $task['next_run'], 
+                    $task['frequency']
+                ));
+            }
+            
+            $this->info(str_repeat("-", 60));
+            $this->info("Current time: " . date('Y-m-d H:i:s'));
+            
+        } catch (Exception $e) {
+            $this->error("Failed to get cron status: " . $e->getMessage());
+        }
+    }
+    
+    private function showScheduleStats($scheduleService)
+    {
+        $this->info("Schedule Statistics:");
+        
+        try {
+            $stats = $scheduleService->getScheduleStats();
+            
+            $this->info(str_repeat("-", 40));
+            $this->info(sprintf("%-25s: %d", "Due today", $stats['due_today']));
+            $this->info(sprintf("%-25s: %d", "Due this week", $stats['due_this_week']));
+            $this->info(sprintf("%-25s: %d", "Due this month", $stats['due_this_month']));
+            $this->info(sprintf("%-25s: %d", "Overdue", $stats['overdue']));
+            $this->info(sprintf("%-25s: %d", "Active recurring", $stats['active_recurring']));
+            $this->info(str_repeat("-", 40));
+            
+        } catch (Exception $e) {
+            $this->error("Failed to get schedule stats: " . $e->getMessage());
+        }
+    }
+    
+    private function showHelp()
+    {
+        $this->info("Accounting Panel Console Tool");
+        $this->info("Usage: php control.php <command> [options]");
+        $this->info("");
+        $this->info("Available commands:");
+        $this->info("");
+        $this->info("Migration commands:");
+        $this->info("  migrate run              Run pending migrations");
+        $this->info("  migrate fresh            Drop all tables and run migrations");
+        $this->info("  migrate rollback [steps] Rollback migrations (default: 1 batch)");
+        $this->info("  migrate status           Show migration status");
+        $this->info("  migrate reset            Reset database (fresh + seed)");
+        $this->info("");
+        $this->info("Make commands:");
+        $this->info("  make migration <name>    Create a new migration file");
+        $this->info("");
+        $this->info("User management:");
+        $this->info("  user create <name> <email> <password> [role]  Create a new user");
+        $this->info("  user list                                      List all users");
+        $this->info("  user delete <email>                           Delete a user");
+        $this->info("  user admin                                     Create admin user from config");
+        $this->info("");
+        $this->info("Database commands:");
+        $this->info("  db seed              Seed database with sample data");
+        $this->info("  db reset             Reset database (fresh + seed)");
+        $this->info("  db status            Show database status");
+        $this->info("");
+        $this->info("Faker commands:");
+        $this->info("  faker all                            Generate all fake data with default counts");
+        $this->info("  faker generate [options]             Generate fake data with custom counts");
+        $this->info("    Options: --users=N --cards=N --subscriptions=N --categories=N");
+        $this->info("             --tags=N --bank-accounts=N --crypto-wallets=N --expenses=N");
+        $this->info("  faker users [count]                  Generate fake users");
+        $this->info("  faker cards [count]                  Generate fake credit cards");
+        $this->info("  faker subscriptions [count]          Generate fake subscriptions");
+        $this->info("  faker categories [count]             Generate fake categories");
+        $this->info("  faker tags [count]                   Generate fake tags");
+        $this->info("  faker bank-accounts [count]          Generate fake bank accounts");
+        $this->info("  faker crypto-wallets [count]         Generate fake crypto wallets");
+        $this->info("  faker expenses [count]               Generate fake expenses");
+        $this->info("  faker reset                          Clear all fake data");
+        $this->info("  faker summary                        Show current data summary");
+        $this->info("");
+        $this->info("Schedule commands:");
+        $this->info("  schedule cron        Run consolidated cron scheduler (every minute)");
+        $this->info("  schedule run         Process all due payments (legacy command)");
+        $this->info("  schedule upcoming [days]  Show upcoming payments (default: 7 days)");
+        $this->info("  schedule expired     Handle expired subscriptions (legacy command)");
+        $this->info("  schedule stats       Show schedule statistics");
+        $this->info("  schedule status      Show cron scheduler status and upcoming tasks");
+        $this->info("");
+        $this->info("Other commands:");
+        $this->info("  cache clear          Clear application cache");
+        $this->info("  serve [port]         Start development server (default: 8000)");
+        $this->info("  help                 Show this help message");
+    }
+    
+    private function success($message)
+    {
+        echo "\033[32m✓ {$message}\033[0m\n";
+    }
+    
+    private function error($message)
+    {
+        echo "\033[31m✗ {$message}\033[0m\n";
+    }
+    
+    private function warning($message)
+    {
+        echo "\033[33m⚠ {$message}\033[0m\n";
+    }
+    
+    private function info($message)
+    {
+        echo "{$message}\n";
+    }
+    
+    private function promptInput($prompt, $default = null)
+    {
+        $defaultText = $default ? " [{$default}]" : "";
+        echo "{$prompt}{$defaultText}: ";
+        
+        $input = trim(fgets(STDIN));
+        
+        if (empty($input) && $default !== null) {
+            return $default;
+        }
+        
+        return $input;
+    }
+    
+    private function promptPassword($prompt)
+    {
+        echo "{$prompt}: ";
+        
+        // Turn off echoing for password input
+        system('stty -echo');
+        $password = trim(fgets(STDIN));
+        system('stty echo');
+        
+        echo "\n"; // Add newline after password input
+        
+        return $password;
+    }
+}
+
+// Run the console application
+$control = new Control();
+$control->run($argv); 

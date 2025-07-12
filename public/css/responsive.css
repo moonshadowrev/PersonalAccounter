@@ -1,0 +1,930 @@
+/* Responsive */
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar.active ~ .overlay {
+    display: block;
+    opacity: 1;
+}
+
+.close-sidebar {
+    display: none; /* Hide by default */
+}
+
+@media (min-width: 1081px) {
+    .sidebar {
+        transform: translateX(0);
+        position: relative;
+    }
+    .mobile-toggle {
+        display: none;
+    }
+    .overlay {
+        display: none !important;
+    }
+    .col-lg-2 { flex: 0 0 16.666%; max-width: 16.666%; }
+    .col-lg-4 { flex: 0 0 33.333%; max-width: 33.333%; }
+    .col-md-4 { flex: 0 0 33.333%; max-width: 33.333%; }
+    .col-md-12 { flex: 0 0 100%; max-width: 100%; }
+}
+
+@media (max-width: 1080px) {
+    .mobile-toggle {
+        display: block;
+    }
+    .sidebar.active {
+        transform: translateX(0);
+    }
+    .sidebar {
+        position: fixed;
+        transform: translateX(-100%);
+    }
+    .close-sidebar {
+        display: block;
+    }
+}
+
+@media (max-width: 768px) {
+    .row {
+        margin: 0 -10px;
+    }
+    .col-lg-2, .col-md-4, .col-6, .col-md-12, .col-lg-4 {
+       padding: 0 10px;
+       margin-bottom: 20px;
+       flex: 0 0 100%;
+       max-width: 100%;
+    }
+
+    .h1 {
+        font-size: 20px;
+    }
+
+    .card-body {
+        padding: 15px;
+    }
+
+    .form-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-inline input, .form-inline button {
+        margin-right: 0 !important;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+    
+    /* Categories Table Responsive */
+    #categories-table {
+        font-size: 12px;
+    }
+    
+    #categories-table th,
+    #categories-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+    
+    #categories-table .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        margin: 2px;
+    }
+    
+    #categories-table .btn-group {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    #categories-table .btn-group .btn {
+        width: 100%;
+        margin: 2px 0;
+    }
+    
+    /* Tags Table Responsive */
+    #tags-table {
+        font-size: 12px;
+    }
+    
+    #tags-table th,
+    #tags-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+    
+    #tags-table .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        margin: 2px;
+    }
+    
+    #tags-table .btn-group {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    #tags-table .btn-group .btn {
+        width: 100%;
+        margin: 2px 0;
+    }
+    
+    /* Expenses Table Responsive */
+    #expenses-table {
+        font-size: 12px;
+    }
+    
+    #expenses-table th,
+    #expenses-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 120px;
+    }
+    
+    #expenses-table .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        margin: 2px;
+    }
+    
+    #expenses-table .btn-group-vertical {
+        width: 100%;
+    }
+    
+    #expenses-table .btn-group-vertical .btn {
+        width: 100%;
+        margin: 2px 0;
+    }
+    
+    /* Expenses Filter Form Responsive */
+    .expenses-filter-form .col-xl-3,
+    .expenses-filter-form .col-lg-4,
+    .expenses-filter-form .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    .expenses-filter-form .col-xl-6,
+    .expenses-filter-form .col-lg-8 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    /* Page Header Buttons Responsive */
+    .d-flex.flex-column.flex-md-row .d-flex.flex-column.flex-sm-row {
+        width: 100%;
+    }
+    
+    .d-flex.flex-column.flex-sm-row .btn {
+        margin-bottom: 8px;
+        width: 100%;
+    }
+    
+    /* Table Truncation for Mobile */
+    .text-truncate {
+        max-width: 150px !important;
+    }
+    
+    /* Badge Responsive Adjustments */
+    .badge {
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+    
+    /* Color Preview Responsive */
+    .color-preview {
+        width: 16px !important;
+        height: 16px !important;
+    }
+    
+    /* Filter Card Mobile */
+    .card.bg-light .card-body {
+        padding: 15px;
+    }
+    
+    .card.bg-light .card-header {
+        padding: 10px 15px;
+    }
+    
+    .card.bg-light .card-header h6 {
+        font-size: 14px;
+    }
+    
+    /* Stats Cards Mobile Adjustments */
+    .col-xl-3.col-lg-6.col-md-6.col-sm-6.col-12 {
+        margin-bottom: 15px;
+    }
+    
+    /* Form Labels Mobile */
+    .form-label {
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    /* Category Form Responsive */
+    .category-form .row .col-lg-6 {
+        margin-bottom: 15px;
+    }
+    
+    .category-form .d-flex.flex-column.flex-sm-row .btn {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    /* Tag Form Responsive */
+    .tag-form .d-flex.flex-column.flex-sm-row .btn {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    /* Expense Form Responsive */
+    .expense-form .d-flex.flex-column.flex-sm-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .expense-form .d-flex.flex-column.flex-sm-row .btn {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .expense-form .form-control,
+    .expense-form .form-select {
+        font-size: 14px;
+    }
+    
+    .expense-form .input-group-text {
+        font-size: 14px;
+    }
+    
+    /* Bank Accounts Table Responsive */
+    #bank-accounts-table {
+        font-size: 12px;
+    }
+    
+    #bank-accounts-table th,
+    #bank-accounts-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+    
+    #bank-accounts-table .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        margin: 2px;
+    }
+    
+    /* Bank Account Form Responsive */
+    .bank-account-form .row {
+        margin: 0;
+    }
+    
+    .bank-account-form .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        padding: 0 10px;
+        margin-bottom: 15px;
+    }
+    
+    .bank-account-form .form-control {
+        font-size: 14px;
+    }
+    
+    .bank-account-form .form-text {
+        font-size: 11px;
+    }
+    
+    /* Bank Account Action Buttons */
+    .bank-account-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .bank-account-actions .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .bank-account-actions .float-end {
+        float: none !important;
+    }
+    
+    /* Crypto Wallets Table Responsive */
+    #crypto-wallets-table {
+        font-size: 12px;
+    }
+    
+    #crypto-wallets-table th,
+    #crypto-wallets-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+    
+    #crypto-wallets-table .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        margin: 2px;
+    }
+    
+    /* Crypto Wallet Form Responsive */
+    .crypto-wallet-form .row {
+        margin: 0;
+    }
+    
+    .crypto-wallet-form .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        padding: 0 10px;
+        margin-bottom: 15px;
+    }
+    
+    .crypto-wallet-form .form-control {
+        font-size: 14px;
+    }
+    
+    .crypto-wallet-form .form-text {
+        font-size: 11px;
+    }
+    
+    /* Crypto Wallet Action Buttons */
+    .crypto-wallet-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .crypto-wallet-actions .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .crypto-wallet-actions .float-end {
+        float: none !important;
+    }
+    
+    /* Users Table Responsive */
+    #users-table {
+        font-size: 12px;
+    }
+    
+    #users-table th,
+    #users-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+    
+    #users-table .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        margin: 2px;
+    }
+    
+    /* User Form Responsive */
+    .user-form .form-control,
+    .user-form .form-select {
+        font-size: 14px;
+    }
+    
+    .user-form .form-text {
+        font-size: 11px;
+    }
+    
+    /* User Action Buttons */
+    .user-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .user-actions .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    /* Reports Page Responsive */
+    #transactions-table {
+        font-size: 12px;
+    }
+    
+    #transactions-table th,
+    #transactions-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+    
+    #transactions-table .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        margin: 2px;
+    }
+    
+    /* Reports Filter Form Responsive */
+    .reports-filter-form .col-xl-3,
+    .reports-filter-form .col-lg-4,
+    .reports-filter-form .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    .reports-filter-form .col-xl-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    /* Quick Filter Buttons Responsive */
+    .quick-filter-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .quick-filter-buttons .btn {
+        width: 100%;
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+    
+    /* Reports Stats Cards */
+    .reports-stats .col-md-3 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    /* Profile Pages Responsive */
+    .profile-form .row {
+        margin: 0;
+    }
+    
+    .profile-form .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        padding: 0 10px;
+        margin-bottom: 15px;
+    }
+    
+    .profile-form .form-control {
+        font-size: 14px;
+    }
+    
+    .profile-form .form-text {
+        font-size: 11px;
+    }
+    
+    /* API Keys Table Responsive */
+    .api-keys-table {
+        font-size: 12px;
+    }
+    
+    .api-keys-table th,
+    .api-keys-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+    
+    .api-keys-table .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        margin: 2px;
+    }
+    
+    /* Profile Action Buttons */
+    .profile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .profile-actions .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    /* 2FA Setup Responsive */
+    .tfa-setup .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 20px;
+    }
+    
+    .backup-codes-container .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    /* Sidebar responsive adjustments */
+    .sidebar-brand {
+        font-size: 16px;
+    }
+    
+    .user-info {
+        padding: 12px 15px;
+    }
+    
+    .user-avatar {
+        width: 35px;
+        height: 35px;
+        font-size: 14px;
+    }
+    
+    .user-name {
+        font-size: 13px;
+    }
+    
+    .user-role {
+        font-size: 11px;
+    }
+    
+    .sidebar-nav a,
+    .user-actions a {
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar {
+        width: 100%;
+    }
+    .header-bar {
+        padding: 15px;
+    }
+
+    .h5, .h5.mb-0 {
+        font-size: 20px;
+    }
+    
+    /* Categories Mobile Adjustments */
+    #categories-table {
+        font-size: 11px;
+    }
+    
+    #categories-table th,
+    #categories-table td {
+        padding: 6px 2px;
+        max-width: 80px;
+    }
+    
+    #categories-table .btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        margin: 1px;
+    }
+    
+    /* Tags Mobile Adjustments */
+    #tags-table {
+        font-size: 11px;
+    }
+    
+    #tags-table th,
+    #tags-table td {
+        padding: 6px 2px;
+        max-width: 80px;
+    }
+    
+    #tags-table .btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        margin: 1px;
+    }
+    
+    /* Expenses Mobile Adjustments */
+    #expenses-table {
+        font-size: 11px;
+    }
+    
+    #expenses-table th,
+    #expenses-table td {
+        padding: 6px 2px;
+        max-width: 80px;
+    }
+    
+    #expenses-table .btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        margin: 1px;
+    }
+    
+    /* Filter Form Mobile */
+    .expenses-filter-form .form-control,
+    .expenses-filter-form .form-select {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    
+    .expenses-filter-form .btn {
+        padding: 10px 15px;
+        font-size: 13px;
+    }
+    
+    /* Table Truncation for Small Mobile */
+    .text-truncate {
+        max-width: 100px !important;
+    }
+    
+    /* Badge Mobile */
+    .badge {
+        font-size: 9px;
+        padding: 3px 6px;
+    }
+    
+    /* Color Preview Mobile */
+    .color-preview {
+        width: 14px !important;
+        height: 14px !important;
+    }
+    
+    /* Bank Accounts Mobile Adjustments */
+    #bank-accounts-table {
+        font-size: 11px;
+    }
+    
+    #bank-accounts-table th,
+    #bank-accounts-table td {
+        padding: 6px 2px;
+        max-width: 80px;
+    }
+    
+    #bank-accounts-table .btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        margin: 1px;
+    }
+    
+    .bank-account-form .form-control {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    
+    .bank-account-form .form-text {
+        font-size: 10px;
+    }
+    
+    .bank-account-form .btn {
+        padding: 10px 15px;
+        font-size: 13px;
+    }
+    
+    /* Page Title Mobile */
+    .page-title {
+        font-size: 18px;
+    }
+    
+    .breadcrumb {
+        font-size: 12px;
+    }
+    
+    /* Card Title Mobile */
+    .card-title {
+        font-size: 16px;
+    }
+    
+    .card-title-desc {
+        font-size: 13px;
+    }
+    
+    /* Form Controls Mobile */
+    .form-control,
+    .form-select {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    
+    .form-label {
+        font-size: 12px;
+    }
+    
+    /* Button Adjustments Mobile */
+    .btn {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+    
+    .btn-sm {
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+    
+    /* Crypto Wallets Mobile Adjustments */
+    #crypto-wallets-table {
+        font-size: 11px;
+    }
+    
+    #crypto-wallets-table th,
+    #crypto-wallets-table td {
+        padding: 6px 2px;
+        max-width: 80px;
+    }
+    
+    #crypto-wallets-table .btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        margin: 1px;
+    }
+    
+    .crypto-wallet-form .form-control {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    
+    .crypto-wallet-form .form-text {
+        font-size: 10px;
+    }
+    
+    .crypto-wallet-form .btn {
+        padding: 10px 15px;
+        font-size: 13px;
+    }
+    
+    /* Users Mobile Adjustments */
+    #users-table {
+        font-size: 11px;
+    }
+    
+    #users-table th,
+    #users-table td {
+        padding: 6px 2px;
+        max-width: 80px;
+    }
+    
+    #users-table .btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        margin: 1px;
+    }
+    
+    .user-form .form-control,
+    .user-form .form-select {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    
+    .user-form .form-text {
+        font-size: 10px;
+    }
+    
+    .user-form .btn {
+        padding: 10px 15px;
+        font-size: 13px;
+    }
+    
+    /* Reports Mobile Adjustments */
+    #transactions-table {
+        font-size: 11px;
+    }
+    
+    #transactions-table th,
+    #transactions-table td {
+        padding: 6px 2px;
+        max-width: 80px;
+    }
+    
+    #transactions-table .btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        margin: 1px;
+    }
+    
+    .quick-filter-buttons .btn {
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+    
+    .reports-stats .card-body {
+        padding: 12px;
+    }
+    
+    .reports-stats .avatar-sm {
+        width: 35px;
+        height: 35px;
+        font-size: 14px;
+    }
+    
+    .reports-stats h6 {
+        font-size: 13px;
+    }
+    
+    .reports-stats b {
+        font-size: 16px;
+    }
+    
+    /* Profile Mobile Adjustments */
+    .profile-form .form-control {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+    
+    .profile-form .form-text {
+        font-size: 10px;
+    }
+    
+    .profile-form .btn {
+        padding: 10px 15px;
+        font-size: 13px;
+    }
+    
+    /* API Keys Mobile */
+    .api-keys-table {
+        font-size: 11px;
+    }
+    
+    .api-keys-table th,
+    .api-keys-table td {
+        padding: 6px 2px;
+        max-width: 80px;
+    }
+    
+    .api-keys-table .btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        margin: 1px;
+    }
+    
+    /* 2FA Mobile */
+    .tfa-setup .card-body {
+        padding: 12px;
+    }
+    
+    .backup-codes-container .backup-code-item {
+        font-size: 11px;
+        padding: 8px;
+        margin: 3px;
+    }
+    
+    /* Sidebar Mobile */
+    .sidebar-header {
+        padding: 15px;
+    }
+    
+    .sidebar-brand {
+        font-size: 14px;
+    }
+    
+    .user-info {
+        padding: 10px 15px;
+    }
+    
+    .user-avatar {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+        margin-right: 10px;
+    }
+    
+    .user-name {
+        font-size: 12px;
+    }
+    
+    .user-role {
+        font-size: 10px;
+    }
+    
+    .sidebar-nav a,
+    .user-actions a {
+        padding: 8px 15px;
+        font-size: 12px;
+    }
+    
+    .sidebar-nav a .fa-fw,
+    .user-actions a .fa-fw {
+        margin-right: 8px;
+        width: 14px;
+    }
+} 

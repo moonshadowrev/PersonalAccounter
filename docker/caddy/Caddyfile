@@ -1,0 +1,133 @@
+{
+    # Global options
+    email admin@localhost
+    admin off
+    
+    # Logging
+    log {
+        level INFO
+        format json
+    }
+}
+
+# Main application
+{$DOMAIN:localhost} {
+    # Set document root
+    root * /var/www/html/public
+    
+    # Enable file serving
+    file_server
+    
+    # Security headers
+    header {
+        # Security headers
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        
+        # Remove server identification
+        -Server
+        
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self';"
+        
+        # HSTS (only if using HTTPS)
+        # Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+    
+    # PHP-FPM configuration
+    php_fastcgi app:9000 {
+        # Pass additional environment variables
+        env APP_ENV {$APP_ENV}
+        env APP_DEBUG {$APP_DEBUG}
+        env APP_URL {$APP_URL}
+        env APP_DOMAIN {$APP_DOMAIN}
+        env DB_HOST {$DB_HOST}
+        env DB_NAME {$DB_NAME}
+        env DB_USER {$DB_USER}
+        env DB_PASS {$DB_PASS}
+        
+        # Set proper index files
+        index index.php
+        
+        # Handle PHP files
+        try_files {path} {path}/index.php =404
+        
+        # Read timeout
+        read_timeout 300s
+        write_timeout 300s
+    }
+    
+    # Handle static assets
+    @static {
+        file
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
+    }
+    handle @static {
+        header Cache-Control "public, max-age=31536000"
+        file_server
+    }
+    
+    # Handle uploads directory
+    @uploads {
+        path /uploads/*
+    }
+    handle @uploads {
+        header Cache-Control "public, max-age=86400"
+        file_server
+    }
+    
+    # Deny access to sensitive files
+    @forbidden {
+        path /.env*
+        path /.git*
+        path /composer.*
+        path /control*
+        path /docker*
+        path /config*
+        path /logs*
+        path /sessions*
+        path /vendor*
+        path /database*
+        path /bootstrap*
+        path /app*
+        path *.md
+        path *.txt
+        path *.log
+        path *.yml
+        path *.yaml
+        path *.json
+        path *.lock
+        path *.xml
+        path *.ini
+        path *.conf
+    }
+    respond @forbidden "Access denied" 403
+    
+    # Handle directory traversal
+    @dotfiles {
+        path */.*
+    }
+    respond @dotfiles "Access denied" 403
+    
+    # Error handling
+    handle_errors {
+        respond "Error {http.error.status_code}: {http.error.status_text}" {http.error.status_code}
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    
+    # Enable compression
+    encode gzip
+    
+    # Request limits
+    request_body {
+        max_size 64MB
+    }
+} 
