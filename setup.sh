@@ -479,6 +479,8 @@ https://$DOMAIN {
 EOF
     else
         cat >> docker/caddy/Caddyfile << EOF
+$DOMAIN {
+EOF
     fi
     
     # Add common configuration for both HTTP and HTTPS
