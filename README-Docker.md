@@ -539,6 +539,7 @@ Password : 123456789
 
 **🎉 Ready to start? Run the one-line installer:**
 
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
 ```

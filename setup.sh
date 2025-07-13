@@ -532,13 +532,13 @@ EOF
         write_timeout 300s
     }
     
-    # Handle static assets
+    # Handle static assets with caching
     @static {
         file
         path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
     }
     handle @static {
-        header Cache-Control "public, max-age=31536000"
+        header Cache-Control "public, max-age=31536000, immutable"
         file_server
     }
     
@@ -549,6 +549,23 @@ EOF
     handle @uploads {
         header Cache-Control "public, max-age=86400"
         file_server
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+        header Content-Type "text/plain"
+    }
+    
+    # API endpoint handling
+    @api {
+        path /api/*
+    }
+    handle @api {
+        header Cache-Control "no-cache, no-store, must-revalidate"
+        header Pragma "no-cache"
+        header Expires "0"
+        php_fastcgi app:9000
     }
     
     # Deny access to sensitive files
@@ -575,38 +592,89 @@ EOF
         path *.xml
         path *.ini
         path *.conf
+        path *.sh
     }
     respond @forbidden "Access denied" 403
     
-    # Handle directory traversal
+    # Handle directory traversal attempts
     @dotfiles {
         path */.*
     }
     respond @dotfiles "Access denied" 403
     
-    # Health check endpoint
-    handle /health {
-        respond "OK" 200
+    # Block common attack patterns
+    @attacks {
+        path *wp-admin*
+        path *wp-content*
+        path *wp-includes*
+        path *phpMyAdmin*
+        path *phpmyadmin*
+        path *.php~
+        path *.php.bak
+        path *.sql
+        path *.sql.gz
+        path *.sql.bz2
+        path *.backup
+        path *.bak
+        path *.old
+        path *.tmp
+    }
+    respond @attacks "Not Found" 404
+    
+    # Rate limiting for login attempts
+    @login {
+        path /login
+        method POST
+    }
+    handle @login {
+        rate_limit {
+            zone login_attempts
+            key {remote_host}
+            events 5
+            window 5m
+        }
+        php_fastcgi app:9000
     }
     
     # Error handling
     handle_errors {
-        respond "Error {http.error.status_code}: {http.error.status_text}" {http.error.status_code}
+        @4xx expression {http.error.status_code} >= 400 && {http.error.status_code} < 500
+        @5xx expression {http.error.status_code} >= 500
+        
+        handle @4xx {
+            root * /var/www/html/public
+            rewrite * /index.php?error={http.error.status_code}
+        }
+        
+        handle @5xx {
+            respond "Internal Server Error" 500
+        }
     }
     
     # Logging
     log {
-        output file /var/log/caddy/access.log
+        output file /var/log/caddy/access.log {
+            roll_size 100MB
+            roll_keep 5
+            roll_keep_for 720h
+        }
         format json
+        level INFO
     }
     
     # Enable compression
-    encode gzip
+    encode zstd gzip
     
     # Request limits
     request_body {
         max_size 64MB
     }
+    
+    # Redirect trailing slashes
+    @trailingSlash {
+        path_regexp ^/(.+)/$
+    }
+    redir @trailingSlash /{re.1} 301
 }
 EOF
     
