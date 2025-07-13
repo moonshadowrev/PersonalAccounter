@@ -805,101 +805,143 @@ class Expense extends Model {
     public function getAllExpensesWithFilters($filters = [], $page = 1, $limit = 20) {
         return ErrorHandler::wrapDatabaseOperation(function() use ($filters, $page, $limit) {
             $conditions = [];
-            $joins = [
-                '[>]categories' => ['category_id' => 'id'],
-                '[>]credit_cards' => ['credit_card_id' => 'id'],
-                '[>]bank_accounts' => ['bank_account_id' => 'id'],
-                '[>]crypto_wallets' => ['crypto_wallet_id' => 'id'],
-                '[>]users' => ['user_id' => 'id']
-            ];
             
             // Apply filters
             if (!empty($filters['category_id'])) {
-                $conditions['expenses.category_id'] = $filters['category_id'];
+                $conditions['category_id'] = $filters['category_id'];
             }
             
             if (!empty($filters['status'])) {
-                $conditions['expenses.status'] = $filters['status'];
+                $conditions['status'] = $filters['status'];
             }
             
             if (!empty($filters['payment_method'])) {
-                $conditions['expenses.payment_method_type'] = $filters['payment_method'];
+                $conditions['payment_method_type'] = $filters['payment_method'];
             }
             
             if (!empty($filters['payment_id'])) {
                 switch ($filters['payment_method']) {
                     case 'credit_card':
-                        $conditions['expenses.credit_card_id'] = $filters['payment_id'];
+                        $conditions['credit_card_id'] = $filters['payment_id'];
                         break;
                     case 'bank_account':
-                        $conditions['expenses.bank_account_id'] = $filters['payment_id'];
+                        $conditions['bank_account_id'] = $filters['payment_id'];
                         break;
                     case 'crypto_wallet':
-                        $conditions['expenses.crypto_wallet_id'] = $filters['payment_id'];
+                        $conditions['crypto_wallet_id'] = $filters['payment_id'];
                         break;
                 }
             }
             
             if (!empty($filters['date_from'])) {
-                $conditions['expenses.expense_date[>=]'] = $filters['date_from'];
+                $conditions['expense_date[>=]'] = $filters['date_from'];
             }
             
             if (!empty($filters['date_to'])) {
-                $conditions['expenses.expense_date[<=]'] = $filters['date_to'];
+                $conditions['expense_date[<=]'] = $filters['date_to'];
             }
             
             if (!empty($filters['amount_min'])) {
-                $conditions['expenses.amount[>=]'] = $filters['amount_min'];
+                $conditions['amount[>=]'] = $filters['amount_min'];
             }
             
             if (!empty($filters['amount_max'])) {
-                $conditions['expenses.amount[<=]'] = $filters['amount_max'];
+                $conditions['amount[<=]'] = $filters['amount_max'];
             }
             
             if (!empty($filters['search'])) {
                 $conditions['OR'] = [
-                    'expenses.title[~]' => $filters['search'],
-                    'expenses.description[~]' => $filters['search'],
-                    'expenses.vendor[~]' => $filters['search'],
-                    'expenses.receipt_number[~]' => $filters['search']
+                    'title[~]' => $filters['search'],
+                    'description[~]' => $filters['search'],
+                    'vendor[~]' => $filters['search'],
+                    'receipt_number[~]' => $filters['search']
                 ];
             }
             
             // Pagination
             $offset = ($page - 1) * $limit;
-            $conditions['ORDER'] = ['expenses.expense_date' => 'DESC', 'expenses.created_at' => 'DESC'];
+            $conditions['ORDER'] = ['expense_date' => 'DESC', 'created_at' => 'DESC'];
             $conditions['LIMIT'] = [$offset, $limit];
             
-            $expenses = $this->db->select('expenses', $joins, [
-                'expenses.id',
-                'expenses.user_id',
-                'expenses.title',
-                'expenses.description',
-                'expenses.amount',
-                'expenses.currency',
-                'expenses.tax_amount',
-                'expenses.tax_rate',
-                'expenses.tax_type',
-                'expenses.expense_date',
-                'expenses.receipt_number',
-                'expenses.vendor',
-                'expenses.notes',
-                'expenses.status',
-                'expenses.payment_method_type',
-                'expenses.attachments',
-                'expenses.created_at',
-                'categories.name(category_name)',
-                'categories.color(category_color)',
-                'categories.icon(category_icon)',
-                'credit_cards.name(credit_card_name)',
-                'bank_accounts.name(bank_account_name)',
-                'crypto_wallets.name(crypto_wallet_name)',
-                'users.name(creator_name)',
-                'users.email(creator_email)'
+            // Get expenses without JOINs to avoid filtering issues
+            $expenses = $this->db->select('expenses', [
+                'id',
+                'user_id',
+                'category_id',
+                'credit_card_id',
+                'bank_account_id',
+                'crypto_wallet_id',
+                'title',
+                'description',
+                'amount',
+                'currency',
+                'tax_amount',
+                'tax_rate',
+                'tax_type',
+                'expense_date',
+                'receipt_number',
+                'vendor',
+                'notes',
+                'status',
+                'payment_method_type',
+                'attachments',
+                'created_at'
             ], $conditions);
-
-            // Get tags for each expense
+            
+            // Add related data for each expense
             foreach ($expenses as &$expense) {
+                // Initialize default values
+                $expense['category_name'] = null;
+                $expense['category_color'] = null;
+                $expense['category_icon'] = null;
+                $expense['creator_name'] = null;
+                $expense['creator_email'] = null;
+                $expense['credit_card_name'] = null;
+                $expense['bank_account_name'] = null;
+                $expense['crypto_wallet_name'] = null;
+                
+                // Get category info
+                if (!empty($expense['category_id'])) {
+                    $category = $this->db->get('categories', ['name', 'color', 'icon'], ['id' => $expense['category_id']]);
+                    if ($category) {
+                        $expense['category_name'] = $category['name'];
+                        $expense['category_color'] = $category['color'];
+                        $expense['category_icon'] = $category['icon'];
+                    }
+                }
+                
+                // Get user info
+                if (!empty($expense['user_id'])) {
+                    $user = $this->db->get('users', ['name', 'email'], ['id' => $expense['user_id']]);
+                    if ($user) {
+                        $expense['creator_name'] = $user['name'];
+                        $expense['creator_email'] = $user['email'];
+                    }
+                }
+                
+                // Get payment method names
+                if (!empty($expense['credit_card_id'])) {
+                    $card = $this->db->get('credit_cards', ['name'], ['id' => $expense['credit_card_id']]);
+                    if ($card) {
+                        $expense['credit_card_name'] = $card['name'];
+                    }
+                }
+                
+                if (!empty($expense['bank_account_id'])) {
+                    $account = $this->db->get('bank_accounts', ['name'], ['id' => $expense['bank_account_id']]);
+                    if ($account) {
+                        $expense['bank_account_name'] = $account['name'];
+                    }
+                }
+                
+                if (!empty($expense['crypto_wallet_id'])) {
+                    $wallet = $this->db->get('crypto_wallets', ['name'], ['id' => $expense['crypto_wallet_id']]);
+                    if ($wallet) {
+                        $expense['crypto_wallet_name'] = $wallet['name'];
+                    }
+                }
+                
+                // Get tags
                 $expense['tags'] = $this->tagModel->getTagsForExpense($expense['id']);
             }
 
@@ -1181,21 +1223,40 @@ class Expense extends Model {
                             'payment_method_type' => $defaultPaymentMethod
                         ];
                         
-                        // Set payment method IDs
+                        // Set payment method IDs with validation
                         $expenseData['credit_card_id'] = null;
                         $expenseData['bank_account_id'] = null;
                         $expenseData['crypto_wallet_id'] = null;
                         
-                        switch ($defaultPaymentMethod) {
-                            case 'credit_card':
-                                $expenseData['credit_card_id'] = $defaultPaymentId;
-                                break;
-                            case 'bank_account':
-                                $expenseData['bank_account_id'] = $defaultPaymentId;
-                                break;
-                            case 'crypto_wallet':
-                                $expenseData['crypto_wallet_id'] = $defaultPaymentId;
-                                break;
+                        // Validate payment method exists before setting
+                        if (!empty($defaultPaymentMethod) && !empty($defaultPaymentId)) {
+                            $paymentExists = false;
+                            switch ($defaultPaymentMethod) {
+                                case 'credit_card':
+                                    $paymentExists = $this->db->has('credit_cards', ['id' => $defaultPaymentId]);
+                                    if ($paymentExists) {
+                                        $expenseData['credit_card_id'] = $defaultPaymentId;
+                                    }
+                                    break;
+                                case 'bank_account':
+                                    $paymentExists = $this->db->has('bank_accounts', ['id' => $defaultPaymentId]);
+                                    if ($paymentExists) {
+                                        $expenseData['bank_account_id'] = $defaultPaymentId;
+                                    }
+                                    break;
+                                case 'crypto_wallet':
+                                    $paymentExists = $this->db->has('crypto_wallets', ['id' => $defaultPaymentId]);
+                                    if ($paymentExists) {
+                                        $expenseData['crypto_wallet_id'] = $defaultPaymentId;
+                                    }
+                                    break;
+                            }
+                            
+                            if (!$paymentExists) {
+                                $errors[] = "Row " . ($i + 1) . ": Invalid payment method ID '$defaultPaymentId' for method '$defaultPaymentMethod'";
+                                // Don't fail the import, just set payment method to null
+                                $expenseData['payment_method_type'] = null;
+                            }
                         }
                         
                         // Check for duplicate titles

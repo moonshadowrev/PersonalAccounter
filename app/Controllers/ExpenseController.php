@@ -40,6 +40,11 @@ class ExpenseController extends Controller {
     public function index() {
         $this->checkAuthentication();
         
+        // Add cache control headers to prevent stale data display
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        
         // Get filter parameters
         $page = max(1, (int)($_GET['page'] ?? 1));
         $limit = min(100, max(10, (int)($_GET['limit'] ?? 25)));
@@ -56,9 +61,11 @@ class ExpenseController extends Controller {
             'search' => $_GET['search'] ?? null
         ];
         
-        // Get all expenses for centralized system
-        $expenses = $this->expenseModel->getAllExpensesWithFilters($filters, $page, $limit);
+        // Get all expenses for centralized system (no pagination for DataTable client-side processing)
+        $expenses = $this->expenseModel->getAllExpensesWithFilters($filters, 1, 10000); // Large limit to get all records
         $totalCount = $this->expenseModel->countAllExpensesWithFilters($filters);
+        
+
         
         // Get filter options - all data for centralized system
         $categories = $this->categoryModel->getAllWithUserInfo();
@@ -85,10 +92,10 @@ class ExpenseController extends Controller {
             'stats' => $stats,
             'filters' => $filters,
             'pagination' => [
-                'current_page' => $page,
-                'total_pages' => ceil($totalCount / $limit),
+                'current_page' => 1,
+                'total_pages' => 1,
                 'total_count' => $totalCount,
-                'limit' => $limit
+                'limit' => $totalCount
             ],
             'load_datatable' => true,
             'datatable_target' => '#expenses-table'
@@ -726,8 +733,14 @@ class ExpenseController extends Controller {
                     }
                 }
                 
+
+                
                 FlashMessage::success($message);
-                header('Location: /expenses');
+                // Add cache busting headers to ensure fresh data is loaded
+                header('Cache-Control: no-cache, no-store, must-revalidate');
+                header('Pragma: no-cache');
+                header('Expires: 0');
+                header('Location: /expenses?imported=' . time());
             } else {
                 AppLogger::warning('Excel import failed', [
                     'user_id' => $userId,

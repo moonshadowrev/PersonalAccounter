@@ -14,6 +14,13 @@
 <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/responsive/3.0.2/js/responsive.bootstrap5.js"></script>
 <script>
     $(document).ready(function () {
+        // Check if page was loaded after import and force refresh if needed
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('imported')) {
+            // Clear the URL parameter to avoid repeated refreshes
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        
         $('<?php echo isset($view_data['datatable_target']) ? $view_data['datatable_target'] : '#dataTable'; ?>').DataTable({
             responsive: true,
             destroy: true,

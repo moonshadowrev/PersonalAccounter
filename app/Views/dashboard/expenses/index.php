@@ -115,9 +115,9 @@
                         <tbody>
                         <?php foreach ($expenses as $expense): ?>
                         <tr>
-                            <td><?php echo $expense['id']; ?></td>
+                            <td><?php echo htmlspecialchars($expense['id']); ?></td>
                             <td>
-                                <a href="/expenses/<?php echo $expense['id']; ?>" class="text-decoration-none">
+                                <a href="/expenses/<?php echo htmlspecialchars($expense['id']); ?>" class="text-decoration-none">
                                     <?php echo htmlspecialchars($expense['title']); ?>
                                 </a>
                                 <?php if (!empty($expense['attachments'])): ?>
@@ -156,13 +156,13 @@
                             </td>
                             <td><?php echo htmlspecialchars($expense['creator_name'] ?? 'Unknown'); ?></td>
                             <td>
-                                <a href="/expenses/<?php echo $expense['id']; ?>" class="btn btn-sm btn-secondary">View</a>
-                                <a href="/expenses/<?php echo $expense['id']; ?>/edit" class="btn btn-sm btn-info">Edit</a>
+                                <a href="/expenses/<?php echo htmlspecialchars($expense['id']); ?>" class="btn btn-sm btn-secondary">View</a>
+                                <a href="/expenses/<?php echo htmlspecialchars($expense['id']); ?>/edit" class="btn btn-sm btn-info">Edit</a>
                                 <?php if ($expense['status'] === 'pending'): ?>
-                                    <button type="button" class="btn btn-sm btn-success" onclick="approveExpense(<?php echo $expense['id']; ?>)">Approve</button>
-                                    <button type="button" class="btn btn-sm btn-warning" onclick="rejectExpense(<?php echo $expense['id']; ?>)">Reject</button>
+                                    <button type="button" class="btn btn-sm btn-success" onclick="approveExpense(<?php echo htmlspecialchars($expense['id']); ?>)">Approve</button>
+                                    <button type="button" class="btn btn-sm btn-warning" onclick="rejectExpense(<?php echo htmlspecialchars($expense['id']); ?>)">Reject</button>
                                 <?php endif; ?>
-                                <button type="button" class="btn btn-sm btn-danger delete-btn" onclick="deleteExpense(<?php echo $expense['id']; ?>)">Delete</button>
+                                <button type="button" class="btn btn-sm btn-danger delete-btn" onclick="deleteExpense(<?php echo htmlspecialchars($expense['id']); ?>)">Delete</button>
                             </td>
                         </tr>
                         <?php endforeach; ?>
