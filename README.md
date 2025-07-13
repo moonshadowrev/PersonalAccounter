@@ -2,13 +2,25 @@
 
 A comprehensive PHP-based personal and business accounting management system with powerful expense tracking, subscription management, and reporting capabilities.
 
+# Auto Deploy
+Accounting Panel Docker Setup Script
+Production-ready automated deployment with secure configuration
+
+Usage:
+```bash
+   curl -fsSL https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
+```
+```bash
+   wget -qO- https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
+```
+
 # Quick install 
 ```bash
 git clone https://github.com/moonshadowrev/PersonalAccounter
 cd PersonalAccounter
 bash ./setup.sh
 ```
-It will even install docker if you don't have it
+
 
 # Demo Access
 
@@ -62,6 +74,24 @@ Password : 123456789
 - **Rate limiting** and comprehensive error handling
 - **Webhooks support** for external integrations
 - **Comprehensive endpoints** for all application features
+
+## 📸 Screenshots
+
+### Main Dashboard
+![Dashboard Overview](.github/screenshots/screenshot.png)
+*Comprehensive financial overview with real-time statistics, recent transactions, and spending analytics*
+
+### Expense Management
+![Expense Tracking](.github/screenshots/screenshot2.png)
+*Intuitive expense tracking interface with category management, bulk operations, and advanced filtering*
+
+### Financial Reports & Analytics
+![Reports and Analytics](.github/screenshots/screenshot3.png)
+*Detailed financial reports with visual charts, spending patterns, and exportable data insights*
+
+### Account & Settings Management
+![Settings and Configuration](.github/screenshots/screenshot4.png)
+*User management, security settings, API configuration, and system administration tools*
 
 ## 📋 Requirements
 

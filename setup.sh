@@ -1,21 +1,37 @@
 #!/bin/bash
 
 # Accounting Panel Docker Setup Script
-# This script automates the complete setup of the accounting panel using Docker
+# Production-ready automated deployment with secure configuration
+# 
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
+#   or
+#   wget -qO- https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
 
-set -e
+set -euo pipefail
 
 # Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_NAME="accounting-panel"
-DOCKER_COMPOSE_VERSION="2.20.0"
-REQUIRED_DOCKER_VERSION="20.10.0"
+readonly PROJECT_NAME="accounting-panel"
+readonly REPO_URL="https://github.com/moonshadowrev/PersonalAccounter.git"
+readonly REQUIRED_DOCKER_VERSION="20.10.0"
+readonly REQUIRED_COMPOSE_VERSION="2.0.0"
+
+# Global variables
+DOMAIN=""
+USE_HTTPS=false
+SSL_TYPE=""
+ENVIRONMENT="production"
+ADMIN_EMAIL=""
+ADMIN_PASSWORD=""
+PROJECT_DIR=""
+SKIP_CLONE=false
 
 # Helper functions
 print_header() {
@@ -40,203 +56,321 @@ print_info() {
     echo -e "${BLUE}ℹ $1${NC}"
 }
 
-# Function to check if command exists
+# Exit with error message
+die() {
+    print_error "$1"
+    exit 1
+}
+
+# Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to compare versions
+# Version comparison
 version_compare() {
     local version1=$1
     local version2=$2
-    if [[ "$(printf '%s\n' "$version1" "$version2" | sort -V | head -n1)" == "$version1" ]]; then
-        return 0
+    printf '%s\n%s\n' "$version1" "$version2" | sort -V | head -n1
+}
+
+# Generate secure random password
+generate_password() {
+    local length=${1:-16}
+    if command_exists openssl; then
+        openssl rand -base64 32 | tr -d "=+/" | cut -c1-${length}
+    elif command_exists /dev/urandom; then
+        head -c 32 /dev/urandom | base64 | tr -d "=+/" | cut -c1-${length}
     else
-        return 1
+        # Fallback method
+        date +%s | sha256sum | base64 | head -c ${length}
     fi
 }
 
-# Function to check Docker installation
-check_docker() {
-    print_header "Checking Docker Installation"
+# Validate email format
+validate_email() {
+    local email=$1
+    [[ $email =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]
+}
+
+# Validate domain format
+validate_domain() {
+    local domain=$1
+    [[ $domain =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$ ]]
+}
+
+# Generate self-signed SSL certificates
+generate_self_signed_ssl() {
+    print_header "Generating Self-Signed SSL Certificates"
     
-    if ! command_exists docker; then
-        print_error "Docker is not installed"
-        print_info "Installing Docker..."
-        install_docker
-    else
-        local docker_version=$(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
-        print_success "Docker is installed (version: $docker_version)"
+    local ssl_dir="docker/caddy/ssl"
+    mkdir -p "$ssl_dir"
+    
+    # Generate private key
+    print_info "Generating private key..."
+    openssl genrsa -out "$ssl_dir/server.key" 4096
+    
+    # Generate certificate signing request
+    print_info "Generating certificate signing request..."
+    openssl req -new -key "$ssl_dir/server.key" -out "$ssl_dir/server.csr" -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=$DOMAIN"
+    
+    # Generate self-signed certificate (valid for 365 days)
+    print_info "Generating self-signed certificate..."
+    openssl x509 -req -days 365 -in "$ssl_dir/server.csr" -signkey "$ssl_dir/server.key" -out "$ssl_dir/server.crt"
+    
+    # Generate certificate with SAN for additional domains
+    cat > "$ssl_dir/server.conf" << EOF
+[req]
+default_bits = 4096
+prompt = no
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[req_distinguished_name]
+C = US
+ST = State
+L = City
+O = Organization
+OU = Unit
+CN = $DOMAIN
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = $DOMAIN
+DNS.2 = www.$DOMAIN
+DNS.3 = localhost
+IP.1 = 127.0.0.1
+EOF
+    
+    # Generate improved certificate with SAN
+    openssl req -new -x509 -key "$ssl_dir/server.key" -out "$ssl_dir/server.crt" -days 365 -config "$ssl_dir/server.conf" -extensions v3_req
+    
+    # Set proper permissions
+    chmod 600 "$ssl_dir/server.key"
+    chmod 644 "$ssl_dir/server.crt"
+    
+    # Clean up temporary files
+    rm -f "$ssl_dir/server.csr" "$ssl_dir/server.conf"
+    
+    print_success "Self-signed SSL certificates generated"
+    print_warning "Note: Browsers will show a security warning for self-signed certificates"
+    print_info "Certificate location: $ssl_dir/"
+}
+
+# Interactive setup
+interactive_setup() {
+    print_header "Interactive Configuration Setup"
+    
+    # Domain configuration
+    while true; do
+        echo -n "Enter your domain (e.g., accounting.example.com) or 'localhost' for local setup: "
+        read -r DOMAIN
         
-        if version_compare "$docker_version" "$REQUIRED_DOCKER_VERSION"; then
-            print_success "Docker version is compatible"
+        if [[ "$DOMAIN" == "localhost" ]]; then
+            USE_HTTPS=false
+            break
+        elif validate_domain "$DOMAIN"; then
+            echo -n "Use HTTPS for $DOMAIN? (y/N): "
+            read -r https_choice
+            if [[ "$https_choice" =~ ^[Yy]$ ]]; then
+                USE_HTTPS=true
+                
+                # Ask for SSL certificate type
+                echo ""
+                echo "SSL Certificate Options:"
+                echo "1) Let's Encrypt (automatic, free, requires public domain)"
+                echo "2) Self-signed (for development/testing)"
+                echo -n "Choose SSL type (1-2) [1]: "
+                read -r ssl_choice
+                
+                case $ssl_choice in
+                    2)
+                        SSL_TYPE="self-signed"
+                        print_info "Will generate self-signed SSL certificates"
+                        ;;
+                    *)
+                        SSL_TYPE="letsencrypt"
+                        print_info "Will use Let's Encrypt for SSL certificates"
+                        ;;
+                esac
+            fi
+            break
         else
-            print_warning "Docker version is older than recommended ($REQUIRED_DOCKER_VERSION)"
-            print_info "Consider upgrading Docker for better performance"
+            print_error "Invalid domain format. Please try again."
         fi
+    done
+    
+    # Environment selection
+    echo -n "Select environment (production/development) [production]: "
+    read -r env_choice
+    if [[ "$env_choice" == "development" ]]; then
+        ENVIRONMENT="development"
+    fi
+    
+    # Admin email
+    while true; do
+        echo -n "Enter admin email: "
+        read -r ADMIN_EMAIL
+        
+        if validate_email "$ADMIN_EMAIL"; then
+            break
+        else
+            print_error "Invalid email format. Please try again."
+        fi
+    done
+    
+    # Admin password
+    echo -n "Enter admin password (or press Enter to generate): "
+    read -rs password_input
+    echo
+    
+    if [[ -z "$password_input" ]]; then
+        ADMIN_PASSWORD=$(generate_password 12)
+        print_info "Generated admin password: $ADMIN_PASSWORD"
+    else
+        ADMIN_PASSWORD="$password_input"
+    fi
+    
+    print_success "Configuration completed"
+}
+
+# Check system requirements
+check_requirements() {
+    print_header "Checking System Requirements"
+    
+    # Check OS
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        print_success "Linux OS detected"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        print_success "macOS detected"
+    else
+        die "Unsupported operating system: $OSTYPE"
+    fi
+    
+    # Check for required tools
+    local required_tools=("curl" "git")
+    for tool in "${required_tools[@]}"; do
+        if command_exists "$tool"; then
+            print_success "$tool is available"
+        else
+            die "$tool is required but not installed"
+        fi
+    done
+    
+    # Check for openssl if self-signed certificates are requested
+    if [[ "$SSL_TYPE" == "self-signed" ]]; then
+        if command_exists openssl; then
+            print_success "openssl is available for certificate generation"
+        else
+            die "openssl is required for self-signed certificate generation but not installed"
+        fi
+    fi
+    
+    # Check Docker
+    if command_exists docker; then
+        local docker_version
+        docker_version=$(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+        
+        if [[ "$(version_compare "$docker_version" "$REQUIRED_DOCKER_VERSION")" == "$REQUIRED_DOCKER_VERSION" ]]; then
+            print_success "Docker $docker_version is compatible"
+        else
+            die "Docker $REQUIRED_DOCKER_VERSION or higher is required (found: $docker_version)"
+        fi
+    else
+        die "Docker is not installed. Please install Docker first."
     fi
     
     # Check Docker Compose
-    if ! command_exists docker-compose && ! docker compose version >/dev/null 2>&1; then
-        print_error "Docker Compose is not installed"
-        print_info "Installing Docker Compose..."
-        install_docker_compose
+    if docker compose version >/dev/null 2>&1; then
+        local compose_version
+        compose_version=$(docker compose version --short)
+        print_success "Docker Compose $compose_version is available"
+    elif command_exists docker-compose; then
+        local compose_version
+        compose_version=$(docker-compose --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+        print_success "Docker Compose $compose_version is available"
     else
-        print_success "Docker Compose is available"
+        die "Docker Compose is not installed"
     fi
     
-    # Check if Docker daemon is running
+    # Check Docker daemon
     if ! docker info >/dev/null 2>&1; then
-        print_error "Docker daemon is not running"
-        print_info "Starting Docker daemon..."
-        start_docker_daemon
+        die "Docker daemon is not running. Please start Docker first."
+    fi
+    
+    print_success "All requirements satisfied"
+}
+
+# Clone or update repository
+setup_repository() {
+    print_header "Setting up Repository"
+    
+    if [[ "$SKIP_CLONE" == true ]]; then
+        PROJECT_DIR="$(pwd)"
+        print_info "Using current directory: $PROJECT_DIR"
+        return
+    fi
+    
+    PROJECT_DIR="$(pwd)/$PROJECT_NAME"
+    
+    if [[ -d "$PROJECT_DIR" ]]; then
+        print_info "Directory exists, updating repository..."
+        cd "$PROJECT_DIR"
+        git pull origin main || die "Failed to update repository"
     else
-        print_success "Docker daemon is running"
+        print_info "Cloning repository..."
+        git clone "$REPO_URL" "$PROJECT_DIR" || die "Failed to clone repository"
+        cd "$PROJECT_DIR"
     fi
+    
+    print_success "Repository setup completed"
 }
 
-# Function to install Docker
-install_docker() {
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Ubuntu/Debian
-        if command_exists apt-get; then
-            print_info "Installing Docker on Ubuntu/Debian..."
-            sudo apt-get update
-            sudo apt-get install -y \
-                ca-certificates \
-                curl \
-                gnupg \
-                lsb-release
-            
-            # Add Docker's official GPG key
-            sudo mkdir -p /etc/apt/keyrings
-            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-            
-            # Add Docker repository
-            echo \
-                "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-                $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-            
-            # Install Docker Engine
-            sudo apt-get update
-            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-            
-            # Add current user to docker group
-            sudo usermod -aG docker $USER
-            
-        # CentOS/RHEL/Fedora
-        elif command_exists yum || command_exists dnf; then
-            print_info "Installing Docker on CentOS/RHEL/Fedora..."
-            if command_exists dnf; then
-                sudo dnf install -y docker docker-compose
-            else
-                sudo yum install -y docker docker-compose
-            fi
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            sudo usermod -aG docker $USER
-        else
-            print_error "Unsupported Linux distribution"
-            print_info "Please install Docker manually: https://docs.docker.com/engine/install/"
-            exit 1
-        fi
-        
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        print_info "Installing Docker on macOS..."
-        if command_exists brew; then
-            brew install --cask docker
-        else
-            print_error "Homebrew not found. Please install Docker Desktop manually:"
-            print_info "https://docs.docker.com/desktop/install/mac-install/"
-            exit 1
-        fi
+# Generate environment configuration
+generate_environment() {
+    print_header "Generating Environment Configuration"
+    
+    # Generate secure passwords
+    local db_root_password=$(generate_password 24)
+    local db_user_password=$(generate_password 24)
+    local session_key=$(generate_password 32)
+    
+    # Determine URL scheme
+    local app_url
+    if [[ "$USE_HTTPS" == true ]]; then
+        app_url="https://$DOMAIN"
     else
-        print_error "Unsupported operating system: $OSTYPE"
-        print_info "Please install Docker manually: https://docs.docker.com/engine/install/"
-        exit 1
+        app_url="http://$DOMAIN"
     fi
     
-    print_success "Docker installation completed"
-    print_warning "Please log out and log back in for Docker permissions to take effect"
-}
-
-# Function to install Docker Compose
-install_docker_compose() {
-    print_info "Installing Docker Compose..."
-    
-    # Download Docker Compose
-    sudo curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    
-    # Make it executable
-    sudo chmod +x /usr/local/bin/docker-compose
-    
-    # Create symlink if needed
-    if [ ! -f /usr/bin/docker-compose ]; then
-        sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-    fi
-    
-    print_success "Docker Compose installation completed"
-}
-
-# Function to start Docker daemon
-start_docker_daemon() {
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        if command_exists systemctl; then
-            sudo systemctl start docker
-            sudo systemctl enable docker
-        else
-            sudo service docker start
-        fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        open -a Docker
-        print_info "Please wait for Docker Desktop to start..."
-        sleep 10
-    fi
-}
-
-# Function to generate random password
-generate_password() {
-    local length=${1:-12}
-    openssl rand -base64 32 | tr -d "=+/" | cut -c1-${length}
-}
-
-# Function to setup environment
-setup_environment() {
-    print_header "Setting up Environment"
-    
-    # Generate secure passwords if not already set
-    if [ ! -f .env ]; then
-        print_info "Creating .env file with secure passwords..."
-        
-        # Generate secure passwords
-        DB_ROOT_PASSWORD=$(generate_password 16)
-        DB_USER_PASSWORD=$(generate_password 16)
-        ADMIN_PASSWORD=$(generate_password 12)
-        
-        # Create .env file
-        cat > .env << EOF
+    # Create .env file
+    cat > .env << EOF
 # Environment Configuration
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=http://localhost
-APP_DOMAIN=localhost
+APP_ENV=$ENVIRONMENT
+APP_DEBUG=$([[ "$ENVIRONMENT" == "development" ]] && echo "true" || echo "false")
+APP_URL=$app_url
+APP_DOMAIN=$DOMAIN
 APP_TIMEZONE=UTC
 
 # Database Configuration
 DB_HOST=database
 DB_NAME=accounting_panel
 DB_USER=accounting_user
-DB_PASS=${DB_USER_PASSWORD}
+DB_PASS=$db_user_password
 DB_PORT=3306
-DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+DB_ROOT_PASSWORD=$db_root_password
 
 # Session Configuration
 SESSION_LIFETIME=0
-SESSION_SECURE=false
-SESSION_SAMESITE=Lax
+SESSION_SECURE=$([[ "$USE_HTTPS" == true ]] && echo "true" || echo "false")
+SESSION_SAMESITE=Strict
+SESSION_KEY=$session_key
 
-# Authentication Configuration
+# Security Configuration
 LOGIN_ATTEMPTS_LIMIT=5
 LOGIN_ATTEMPTS_TIMEOUT=300
 
@@ -248,254 +382,517 @@ API_MAX_RATE_LIMIT=1000
 
 # Logging Configuration
 LOG_CHANNEL=file
-LOG_LEVEL=warning
-LOG_MAX_FILES=5
+LOG_LEVEL=$([[ "$ENVIRONMENT" == "development" ]] && echo "debug" || echo "warning")
+LOG_MAX_FILES=10
 
-# Admin User Configuration (for automated setup)
-ADMIN_NAME=Admin
-ADMIN_EMAIL=admin@localhost
-ADMIN_PASSWORD=${ADMIN_PASSWORD}
+# Admin Configuration
+ADMIN_EMAIL=$ADMIN_EMAIL
+ADMIN_PASSWORD=$ADMIN_PASSWORD
 
 # Docker Configuration
 COMPOSE_PROJECT_NAME=accounting_panel
-COMPOSE_FILE=docker-compose.yml
+HTTP_PORT=80
+HTTPS_PORT=443
+PHPMYADMIN_PORT=8080
+DB_PORT_EXPOSE=3306
 EOF
-        
-        print_success ".env file created with secure passwords"
-        print_info "Admin credentials: admin@localhost / ${ADMIN_PASSWORD}"
-        print_warning "Please save these credentials securely!"
-    else
-        print_success ".env file already exists"
-    fi
     
-    # Create necessary directories
-    mkdir -p logs sessions public/uploads
-    chmod 755 logs sessions public/uploads
+    # Set restrictive permissions
+    chmod 600 .env
     
-    print_success "Environment setup completed"
+    print_success "Environment configuration generated"
+    print_info "Admin credentials: $ADMIN_EMAIL / $ADMIN_PASSWORD"
 }
 
-# Function to build and deploy
+# Setup directory structure
+setup_directories() {
+    print_header "Setting up Directory Structure"
+    
+    local directories=(
+        "logs"
+        "sessions"
+        "public/uploads"
+        "docker/mariadb"
+        "docker/caddy"
+        "docker/caddy/ssl"
+        "docker/php"
+        "docker/cron"
+    )
+    
+    for dir in "${directories[@]}"; do
+        mkdir -p "$dir"
+        print_success "Created directory: $dir"
+    done
+    
+    # Set permissions
+    chmod 755 logs sessions public/uploads
+    
+    print_success "Directory structure setup completed"
+}
+
+# Update Caddy configuration for domain
+update_caddy_config() {
+    print_header "Updating Caddy Configuration"
+    
+    # Start building Caddyfile
+    cat > docker/caddy/Caddyfile << EOF
+{
+    # Global options
+    email $ADMIN_EMAIL
+    admin off
+    
+    # Logging
+    log {
+        level INFO
+        format json
+    }
+EOF
+
+    # Add SSL configuration based on type
+    if [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "letsencrypt" ]]; then
+        cat >> docker/caddy/Caddyfile << EOF
+    
+    # ACME settings for Let's Encrypt
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+    acme_ca_root /etc/ssl/certs/ca-certificates.crt
+EOF
+    elif [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "self-signed" ]]; then
+        cat >> docker/caddy/Caddyfile << EOF
+    
+    # Disable automatic HTTPS for self-signed certificates
+    auto_https off
+EOF
+    fi
+    
+    cat >> docker/caddy/Caddyfile << EOF
+}
+
+# Main application
+EOF
+
+    # Add domain configuration with SSL handling
+    if [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "self-signed" ]]; then
+        cat >> docker/caddy/Caddyfile << EOF
+https://$DOMAIN {
+    # Use self-signed certificates
+    tls /etc/caddy/ssl/server.crt /etc/caddy/ssl/server.key
+EOF
+    else
+        cat >> docker/caddy/Caddyfile << EOF
+    fi
+    
+    # Add common configuration for both HTTP and HTTPS
+    cat >> docker/caddy/Caddyfile << EOF
+    # Set document root
+    root * /var/www/html/public
+    
+    # Enable file serving
+    file_server
+    
+    # Security headers
+    header {
+        # Security headers
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        
+        # Remove server identification
+        -Server
+        
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self';"
+EOF
+
+    # Add HSTS only for HTTPS
+    if [[ "$USE_HTTPS" == true ]]; then
+        cat >> docker/caddy/Caddyfile << EOF
+        
+        # HSTS for HTTPS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+EOF
+    fi
+    
+    cat >> docker/caddy/Caddyfile << EOF
+    }
+    
+    # PHP-FPM configuration
+    php_fastcgi app:9000 {
+        # Set proper index files
+        index index.php
+        
+        # Handle PHP files
+        try_files {path} {path}/index.php =404
+        
+        # Read timeout
+        read_timeout 300s
+        write_timeout 300s
+    }
+    
+    # Handle static assets
+    @static {
+        file
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
+    }
+    handle @static {
+        header Cache-Control "public, max-age=31536000"
+        file_server
+    }
+    
+    # Handle uploads directory
+    @uploads {
+        path /uploads/*
+    }
+    handle @uploads {
+        header Cache-Control "public, max-age=86400"
+        file_server
+    }
+    
+    # Deny access to sensitive files
+    @forbidden {
+        path /.env*
+        path /.git*
+        path /composer.*
+        path /control*
+        path /docker*
+        path /config*
+        path /logs*
+        path /sessions*
+        path /vendor*
+        path /database*
+        path /bootstrap*
+        path /app*
+        path *.md
+        path *.txt
+        path *.log
+        path *.yml
+        path *.yaml
+        path *.json
+        path *.lock
+        path *.xml
+        path *.ini
+        path *.conf
+    }
+    respond @forbidden "Access denied" 403
+    
+    # Handle directory traversal
+    @dotfiles {
+        path */.*
+    }
+    respond @dotfiles "Access denied" 403
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+    
+    # Error handling
+    handle_errors {
+        respond "Error {http.error.status_code}: {http.error.status_text}" {http.error.status_code}
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    
+    # Enable compression
+    encode gzip
+    
+    # Request limits
+    request_body {
+        max_size 64MB
+    }
+}
+EOF
+    
+    print_success "Caddy configuration updated for domain: $DOMAIN"
+}
+
+# Build and deploy application
 deploy_application() {
     print_header "Building and Deploying Application"
     
     # Stop existing containers
     print_info "Stopping existing containers..."
-    docker-compose down --remove-orphans 2>/dev/null || true
+    docker compose down --remove-orphans 2>/dev/null || true
     
     # Build the application
     print_info "Building application containers..."
-    docker-compose build --no-cache
+    docker compose build --no-cache
     
     # Start the services
     print_info "Starting services..."
-    docker-compose up -d
+    if [[ "$ENVIRONMENT" == "development" ]]; then
+        docker compose --profile development up -d
+    else
+        docker compose up -d
+    fi
     
-    # Wait for database to be ready
-    print_info "Waiting for database to be ready..."
-    timeout 60 bash -c 'until docker-compose exec -T database mysql -u root -p${DB_ROOT_PASSWORD} -e "SELECT 1" > /dev/null 2>&1; do sleep 2; done'
+    # Wait for services to be healthy
+    print_info "Waiting for services to be healthy..."
+    local max_wait=300
+    local count=0
     
-    print_success "Application containers are running"
+    while ! docker compose ps --format json | jq -r '.[] | select(.Health != null) | .Health' | grep -q "healthy"; do
+        if [[ $count -ge $max_wait ]]; then
+            die "Services failed to become healthy within $max_wait seconds"
+        fi
+        sleep 2
+        ((count+=2))
+    done
+    
+    print_success "Application deployed successfully"
 }
 
-# Function to initialize database
+# Initialize database
 initialize_database() {
     print_header "Initializing Database"
     
-    # Wait a bit more for the application to be ready
-    sleep 10
+    # Wait for database to be ready
+    print_info "Waiting for database to be ready..."
+    local max_wait=60
+    local count=0
+    
+    while ! docker compose exec -T database mysql -u root -p"$DB_ROOT_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
+        if [[ $count -ge $max_wait ]]; then
+            die "Database failed to start within $max_wait seconds"
+        fi
+        sleep 2
+        ((count+=2))
+    done
     
     # Run database migrations
     print_info "Running database migrations..."
-    docker-compose exec -T app php control migrate run
+    docker compose exec -T app php control migrate run
     
-    # Create admin user non-interactively
+    # Create admin user
     print_info "Creating admin user..."
-    
-    # Source the .env file to get admin credentials
-    source .env
-    
-    # Create admin user using the control command
-    docker-compose exec -T app php control user create \
-        "${ADMIN_NAME}" \
-        "${ADMIN_EMAIL}" \
-        "${ADMIN_PASSWORD}" \
+    docker compose exec -T app php control user create \
+        "Admin" \
+        "$ADMIN_EMAIL" \
+        "$ADMIN_PASSWORD" \
         "superadmin"
     
     print_success "Database initialization completed"
 }
 
-# Function to run health checks
+# Run health checks
 run_health_checks() {
     print_header "Running Health Checks"
     
-    # Check if containers are running
-    if docker-compose ps | grep -q "Up"; then
-        print_success "Containers are running"
+    # Check container health
+    if docker compose ps --format json | jq -r '.[] | select(.Health != null) | .Health' | grep -q "healthy"; then
+        print_success "All containers are healthy"
     else
-        print_error "Some containers are not running"
-        docker-compose ps
-        return 1
+        print_warning "Some containers may not be healthy"
     fi
     
     # Check web server
-    print_info "Checking web server..."
-    if curl -f http://localhost >/dev/null 2>&1; then
+    local app_url
+    if [[ "$USE_HTTPS" == true ]]; then
+        app_url="https://$DOMAIN"
+    else
+        app_url="http://$DOMAIN"
+    fi
+    
+    if [[ "$DOMAIN" == "localhost" ]]; then
+        app_url="http://localhost"
+    fi
+    
+    print_info "Checking web server at $app_url..."
+    if curl -f -s "$app_url/health" >/dev/null 2>&1; then
         print_success "Web server is responding"
     else
-        print_warning "Web server is not responding yet (may need more time)"
-    fi
-    
-    # Check database connection
-    print_info "Checking database connection..."
-    if docker-compose exec -T database mysql -u root -p${DB_ROOT_PASSWORD} -e "SELECT 1" >/dev/null 2>&1; then
-        print_success "Database is accessible"
-    else
-        print_error "Database is not accessible"
-        return 1
-    fi
-    
-    # Check phpMyAdmin
-    print_info "Checking phpMyAdmin..."
-    if curl -f http://localhost:8080 >/dev/null 2>&1; then
-        print_success "phpMyAdmin is responding"
-    else
-        print_warning "phpMyAdmin is not responding yet (may need more time)"
+        print_warning "Web server may not be ready yet"
     fi
     
     print_success "Health checks completed"
 }
 
-# Function to display final information
+# Display final information
 display_final_info() {
-    print_header "Setup Complete!"
+    print_header "🎉 Setup Complete!"
     
-    # Source the .env file to get credentials
-    source .env
+    local app_url
+    if [[ "$USE_HTTPS" == true ]]; then
+        app_url="https://$DOMAIN"
+    else
+        app_url="http://$DOMAIN"
+    fi
     
-    echo -e "${GREEN}🎉 Accounting Panel has been successfully deployed!${NC}\n"
+    if [[ "$DOMAIN" == "localhost" ]]; then
+        app_url="http://localhost"
+    fi
+    
+    echo -e "${GREEN}Accounting Panel has been successfully deployed!${NC}\n"
     
     echo -e "${BLUE}📋 Service Information:${NC}"
-    echo -e "   • Main Application: ${GREEN}http://localhost${NC}"
-    echo -e "   • phpMyAdmin: ${GREEN}http://localhost:8080${NC}"
-    echo -e "   • Database Host: ${GREEN}localhost:3306${NC}"
+    echo -e "   • Main Application: ${GREEN}$app_url${NC}"
+    if [[ "$ENVIRONMENT" == "development" ]]; then
+        echo -e "   • phpMyAdmin: ${GREEN}http://localhost:8080${NC}"
+    fi
+    echo -e "   • Environment: ${GREEN}$ENVIRONMENT${NC}"
     
-    echo -e "\n${BLUE}🔐 Admin Credentials:${NC}"
-    echo -e "   • Email: ${GREEN}${ADMIN_EMAIL}${NC}"
-    echo -e "   • Password: ${GREEN}${ADMIN_PASSWORD}${NC}"
-    
-    echo -e "\n${BLUE}🗄️ Database Credentials:${NC}"
-    echo -e "   • Database: ${GREEN}${DB_NAME}${NC}"
-    echo -e "   • User: ${GREEN}${DB_USER}${NC}"
-    echo -e "   • Password: ${GREEN}${DB_PASS}${NC}"
-    echo -e "   • Root Password: ${GREEN}${DB_ROOT_PASSWORD}${NC}"
+    echo -e "\n${BLUE}🔐 Admin Access:${NC}"
+    echo -e "   • Email: ${GREEN}$ADMIN_EMAIL${NC}"
+    echo -e "   • Password: ${GREEN}$ADMIN_PASSWORD${NC}"
     
     echo -e "\n${BLUE}🛠️ Management Commands:${NC}"
-    echo -e "   • View logs: ${GREEN}docker-compose logs -f${NC}"
-    echo -e "   • Stop services: ${GREEN}docker-compose down${NC}"
-    echo -e "   • Start services: ${GREEN}docker-compose up -d${NC}"
-    echo -e "   • Access app container: ${GREEN}docker-compose exec app bash${NC}"
-    echo -e "   • Run control commands: ${GREEN}docker-compose exec app php control <command>${NC}"
+    echo -e "   • View logs: ${GREEN}docker compose logs -f${NC}"
+    echo -e "   • Stop services: ${GREEN}docker compose down${NC}"
+    echo -e "   • Start services: ${GREEN}docker compose up -d${NC}"
+    echo -e "   • Access app container: ${GREEN}docker compose exec app bash${NC}"
+    echo -e "   • Run control commands: ${GREEN}docker compose exec app php control <command>${NC}"
     
-    echo -e "\n${YELLOW}⚠️ Important Notes:${NC}"
-    echo -e "   • Please save your admin credentials securely"
+    echo -e "\n${BLUE}📁 Important Files:${NC}"
+    echo -e "   • Environment config: ${GREEN}.env${NC}"
+    echo -e "   • Application logs: ${GREEN}logs/app.log${NC}"
+    echo -e "   • Project directory: ${GREEN}$PROJECT_DIR${NC}"
+    
+    echo -e "\n${YELLOW}⚠️ Security Notes:${NC}"
+    echo -e "   • Save your admin credentials securely"
     echo -e "   • The .env file contains sensitive information"
-    echo -e "   • Consider changing default passwords in production"
-    echo -e "   • Backup your data regularly"
+    echo -e "   • Regularly update your Docker images"
+    echo -e "   • Set up automated backups"
+    
+    if [[ "$USE_HTTPS" == true ]]; then
+        echo -e "\n${GREEN}🔒 SSL Configuration:${NC}"
+        if [[ "$SSL_TYPE" == "self-signed" ]]; then
+            echo -e "   • Using self-signed SSL certificates"
+            echo -e "   • Certificate location: docker/caddy/ssl/"
+            echo -e "   • ${YELLOW}Warning: Browsers will show security warnings${NC}"
+            echo -e "   • Add security exception or use --https for Let's Encrypt"
+        else
+            echo -e "   • Using Let's Encrypt SSL certificates"
+            echo -e "   • Automatic certificate renewal enabled"
+            echo -e "   • No browser warnings expected"
+        fi
+    elif [[ "$DOMAIN" != "localhost" ]]; then
+        echo -e "\n${YELLOW}🔒 HTTPS Recommendation:${NC}"
+        echo -e "   • Consider enabling HTTPS for production use"
+        echo -e "   • Use --https for Let's Encrypt or --self-signed for development"
+    fi
     
     echo -e "\n${GREEN}Happy accounting! 📊💰${NC}"
 }
 
-# Function to handle Docker Swarm setup
-setup_swarm() {
-    print_header "Setting up Docker Swarm"
-    
-    # Check if already in swarm mode
-    if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then
-        print_success "Already in Docker Swarm mode"
-    else
-        print_info "Initializing Docker Swarm..."
-        docker swarm init
-        print_success "Docker Swarm initialized"
-    fi
-    
-    # Build images for swarm
-    print_info "Building images for swarm deployment..."
-    docker build -t accounting_panel:latest .
-    docker build -t accounting_panel_cron:latest -f docker/cron/Dockerfile .
-    
-    # Deploy stack
-    print_info "Deploying stack to swarm..."
-    docker stack deploy -c docker-swarm.yml accounting-panel
-    
-    print_success "Stack deployed to Docker Swarm"
-    print_info "Use 'docker stack services accounting-panel' to view services"
+# Parse command line arguments
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --domain)
+                DOMAIN="$2"
+                shift 2
+                ;;
+            --https)
+                USE_HTTPS=true
+                SSL_TYPE="letsencrypt"
+                shift
+                ;;
+            --self-signed)
+                USE_HTTPS=true
+                SSL_TYPE="self-signed"
+                shift
+                ;;
+            --env)
+                ENVIRONMENT="$2"
+                shift 2
+                ;;
+            --email)
+                ADMIN_EMAIL="$2"
+                shift 2
+                ;;
+            --password)
+                ADMIN_PASSWORD="$2"
+                shift 2
+                ;;
+            --skip-clone)
+                SKIP_CLONE=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                die "Unknown option: $1"
+                ;;
+        esac
+    done
+}
+
+# Show help
+show_help() {
+    echo "Accounting Panel Setup Script"
+    echo ""
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --domain DOMAIN       Set the domain (default: interactive)"
+    echo "  --https               Enable HTTPS with Let's Encrypt (default: false)"
+    echo "  --self-signed         Enable HTTPS with self-signed certificates"
+    echo "  --env ENV             Set environment (production/development)"
+    echo "  --email EMAIL         Set admin email"
+    echo "  --password PASSWORD   Set admin password"
+    echo "  --skip-clone          Skip repository cloning (use current directory)"
+    echo "  --help, -h            Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 --domain localhost"
+    echo "  $0 --domain example.com --https --email admin@example.com"
+    echo "  $0 --domain dev.local --self-signed --email admin@dev.local"
+    echo "  curl -fsSL https://raw.githubusercontent.com/USER/REPO/main/setup.sh | bash"
 }
 
 # Main execution
 main() {
     print_header "Accounting Panel Docker Setup"
     
-    # Check if running as root
-    if [[ $EUID -eq 0 ]]; then
-        print_warning "Running as root is not recommended for Docker operations"
-        print_info "Consider running this script as a regular user"
+    # Parse arguments
+    parse_arguments "$@"
+    
+    # Check requirements
+    check_requirements
+    
+    # Interactive setup if not all parameters provided
+    if [[ -z "$DOMAIN" || -z "$ADMIN_EMAIL" ]]; then
+        interactive_setup
     fi
     
-    # Parse command line arguments
-    SWARM_MODE=false
-    SKIP_HEALTH_CHECK=false
+    # Setup repository
+    setup_repository
     
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --swarm)
-                SWARM_MODE=true
-                shift
-                ;;
-            --skip-health-check)
-                SKIP_HEALTH_CHECK=true
-                shift
-                ;;
-            --help|-h)
-                echo "Usage: $0 [OPTIONS]"
-                echo ""
-                echo "Options:"
-                echo "  --swarm              Deploy using Docker Swarm"
-                echo "  --skip-health-check  Skip health checks"
-                echo "  --help, -h           Show this help message"
-                exit 0
-                ;;
-            *)
-                print_error "Unknown option: $1"
-                exit 1
-                ;;
-        esac
-    done
+    # Generate environment
+    generate_environment
     
-    # Check Docker installation
-    check_docker
+    # Setup directories
+    setup_directories
     
-    # Setup environment
-    setup_environment
+    # Update Caddy configuration
+    update_caddy_config
+    
+    # Generate SSL certificates if needed
+    if [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "self-signed" ]]; then
+        generate_self_signed_ssl
+    fi
     
     # Deploy application
-    if [ "$SWARM_MODE" = true ]; then
-        setup_swarm
-    else
-        deploy_application
-        
-        # Initialize database
-        initialize_database
-        
-        # Run health checks
-        if [ "$SKIP_HEALTH_CHECK" = false ]; then
-            run_health_checks
-        fi
-    fi
+    deploy_application
+    
+    # Initialize database
+    initialize_database
+    
+    # Run health checks
+    run_health_checks
     
     # Display final information
     display_final_info
 }
 
-# Run main function
-main "$@" 
+# Check if script is being sourced or executed
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi 

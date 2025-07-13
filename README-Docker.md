@@ -1,333 +1,278 @@
-# Accounting Panel - Docker Setup
+# Accounting Panel - Docker Deployment Guide
 
-This document provides comprehensive instructions for setting up and running the Accounting Panel using Docker.
+This guide provides comprehensive instructions for deploying the Accounting Panel using Docker in both development and production environments.
 
 ## 🚀 Quick Start
 
-### Automated Setup (Recommended)
+### One-Line Installation (Recommended)
 
-The easiest way to get started is using the automated setup script:
+The fastest way to get started is using our automated setup script:
 
 ```bash
-# Make the script executable
-chmod +x setup.sh
+curl -fsSL https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
+```
 
-# Run the automated setup
-./setup.sh
+Or using wget:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
 ```
 
 This script will:
 - Check and install Docker if needed
-- Set up the environment with secure passwords
+- Clone the repository
+- Configure your domain and security settings
+- Generate secure passwords
 - Build and deploy all services
-- Initialize the database and create an admin user
+- Initialize the database
 - Run health checks
+- Provide you with login credentials
 
-### Manual Setup
+### Manual Installation
 
-If you prefer to set up manually:
+If you prefer to install manually:
 
 ```bash
-# 1. Copy and configure environment
-cp .env.example .env
-# Edit .env with your preferred settings
+# Clone the repository
+git clone https://github.com/moonshadowrev/PersonalAccounter.git
+cd PersonalAccounter
 
-# 2. Build and start services
-docker-compose up -d --build
+# Make the setup script executable
+chmod +x setup.sh
 
-# 3. Run database migrations
-docker-compose exec app php control migrate run
-
-# 4. Create admin user
-docker-compose exec app php control user admin
+# Run the interactive setup
+./setup.sh
 ```
 
-## 📋 Services
+## 🔧 Requirements
 
-The Docker setup includes the following services:
+Before starting, ensure you have:
 
-### 🐘 MariaDB Database
-- **Container**: `accounting_panel_db`
-- **Port**: `3306`
-- **Version**: MariaDB 10.11
-- **Data**: Persisted in `db_data` volume
+- **Docker 20.10+** and **Docker Compose 2.0+**
+- **2GB RAM minimum** (4GB recommended for production)
+- **1GB free disk space**
+- **Linux, macOS, or Windows with WSL2**
+- **Port 80 and 443 available** (or configure alternative ports)
 
-### 🐘 PHP Application
-- **Container**: `accounting_panel_app`
-- **Framework**: PHP 8.2-FPM
-- **Extensions**: PDO MySQL, GD, ZIP, OpenSSL, etc.
-- **Data**: Logs, sessions, uploads persisted in volumes
+## 📋 Services Overview
 
-### 🌐 Caddy Web Server
-- **Container**: `accounting_panel_caddy`
-- **Ports**: `80` (HTTP), `443` (HTTPS)
-- **Features**: Automatic HTTPS, security headers, compression
-- **Configuration**: `docker/caddy/Caddyfile`
+The Docker setup includes these services:
 
-### 🔧 phpMyAdmin
-- **Container**: `accounting_panel_phpmyadmin`
-- **Port**: `8080`
-- **Access**: `http://localhost:8080`
-- **Credentials**: Use database root credentials
+| Service | Container Name | Port | Description |
+|---------|---------------|------|-------------|
+| **Web Server** | `accounting_panel_caddy` | 80, 443 | Caddy 2.7 with automatic HTTPS |
+| **PHP Application** | `accounting_panel_app` | 9000 | PHP 8.2-FPM with custom framework |
+| **Database** | `accounting_panel_db` | 3306 | MariaDB 10.11 with optimizations |
+| **Cron Service** | `accounting_panel_cron` | - | Automated background tasks |
+| **phpMyAdmin** | `accounting_panel_phpmyadmin` | 8080 | Database management (dev only) |
 
-### ⏰ Cron Service
-- **Container**: `accounting_panel_cron`
-- **Purpose**: Automated scheduled tasks
-- **Tasks**: Payment processing, log cleanup, health checks
+## 🔐 Security Configuration
 
-## 🔧 Configuration
+The setup script automatically configures:
+
+- **Secure passwords** for all services
+- **Domain-specific** session configuration
+- **HTTPS support** with automatic SSL certificates
+- **CSRF protection** with proper domain binding
+- **Security headers** and content policies
+- **Rate limiting** on login attempts
 
 ### Environment Variables
 
-Key environment variables in `.env`:
+Key security variables configured automatically:
 
 ```bash
-# Application
+# Application Security
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=http://localhost
-APP_DOMAIN=localhost
+APP_DOMAIN=your-domain.com
+SESSION_SECURE=true
+SESSION_SAMESITE=Strict
 
-# Database
-DB_HOST=database
-DB_NAME=accounting_panel
-DB_USER=accounting_user
-DB_PASS=secure_password
-DB_ROOT_PASSWORD=root_password
+# Database Security
+DB_PASS=randomly-generated-secure-password
+DB_ROOT_PASSWORD=randomly-generated-secure-password
 
-# Admin User
-ADMIN_NAME=Admin
-ADMIN_EMAIL=admin@localhost
-ADMIN_PASSWORD=admin_password
+# Admin Access
+ADMIN_EMAIL=your-email@domain.com
+ADMIN_PASSWORD=randomly-generated-secure-password
 ```
 
-### Service Configuration
+## 🌐 Domain Configuration
 
-#### PHP Configuration
-Location: `docker/php/php.ini`
+### Local Development
 
-Key settings:
-- Memory limit: 256M
-- Upload max size: 64M
-- Execution time: 300s
-- OPcache enabled
+For local development, use:
 
-#### Caddy Configuration
-Location: `docker/caddy/Caddyfile`
+```bash
+./setup.sh --domain localhost --env development
+```
 
-Features:
-- Automatic HTTPS (in production)
-- Security headers
-- PHP-FPM integration
-- Static file handling
-- Access restrictions
+This configures:
+- HTTP-only access at `http://localhost`
+- Development tools enabled
+- phpMyAdmin accessible at `http://localhost:8080`
 
-#### MariaDB Configuration
-Location: `docker/mariadb/init.sql`
+### Production Deployment
 
-Optimizations:
-- UTF8MB4 character set
-- InnoDB buffer pool sizing
-- Connection limits
-- Query cache settings
+For production with your domain:
+
+```bash
+./setup.sh --domain your-domain.com --https --env production
+```
+
+This configures:
+- Automatic HTTPS with Let's Encrypt
+- Production optimizations
+- Security headers enabled
+- Development tools disabled
+
+### SSL Certificate Options
+
+The setup script supports multiple SSL certificate options:
+
+#### Let's Encrypt (Recommended for Production)
+```bash
+./setup.sh --domain your-domain.com --https
+```
+- Free, automatic SSL certificates
+- Automatic renewal
+- Trusted by all browsers
+- Requires public domain
+
+#### Self-Signed Certificates (Development/Testing)
+```bash
+./setup.sh --domain dev.local --self-signed
+```
+- Generated locally during setup
+- No external dependencies
+- Browsers will show security warnings
+- Perfect for development environments
+
+#### No SSL (HTTP Only)
+```bash
+./setup.sh --domain localhost
+```
+- HTTP only access
+- No encryption
+- Only recommended for local development
+
+## 📦 Advanced Configuration
+
+### Custom Ports
+
+If you need to use different ports:
+
+```bash
+# Edit .env file
+HTTP_PORT=8080
+HTTPS_PORT=8443
+PHPMYADMIN_PORT=8081
+DB_PORT_EXPOSE=3307
+```
+
+### Environment Customization
+
+The setup script supports various options:
+
+```bash
+# Production setup with Let's Encrypt
+./setup.sh --domain example.com --https --email admin@example.com --password secure123
+
+# Development setup with self-signed SSL
+./setup.sh --domain dev.local --self-signed --env development --email admin@dev.local
+
+# Local development without SSL
+./setup.sh --env development --domain localhost
+
+# Skip repository cloning (run in existing directory)
+./setup.sh --skip-clone
+```
 
 ## 🛠️ Management Commands
 
-### Docker Compose Commands
+### Service Management
 
 ```bash
-# Start all services
-docker-compose up -d
-
-# Stop all services
-docker-compose down
+# View all services
+docker compose ps
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # View specific service logs
-docker-compose logs -f app
+docker compose logs -f app
+docker compose logs -f database
+docker compose logs -f caddy
 
-# Rebuild services
-docker-compose build --no-cache
+# Restart services
+docker compose restart
 
-# Restart specific service
-docker-compose restart app
+# Stop all services
+docker compose down
 
-# Execute commands in containers
-docker-compose exec app bash
-docker-compose exec database mysql -u root -p
+# Start services
+docker compose up -d
+
+# Rebuild and restart
+docker compose down
+docker compose build --no-cache
+docker compose up -d
 ```
 
-### Application Commands
+### Application Management
 
 ```bash
-# Run control commands
-docker-compose exec app php control <command>
+# Access the application container
+docker compose exec app bash
 
-# Database operations
-docker-compose exec app php control migrate run
-docker-compose exec app php control db seed
-docker-compose exec app php control faker all
+# Run database migrations
+docker compose exec app php control migrate run
 
-# User management
-docker-compose exec app php control user create "John Doe" "john@example.com" "password"
-docker-compose exec app php control user list
+# Create a new admin user
+docker compose exec app php control user create "John Doe" "john@example.com" "password"
 
-# Schedule operations
-docker-compose exec app php control schedule status
-docker-compose exec app php control schedule run
+# View user list
+docker compose exec app php control user list
+
+# Run scheduled tasks manually
+docker compose exec app php control schedule run
+
+# Check application health
+curl http://localhost/health
 ```
 
-## 🔄 Docker Swarm Deployment
-
-For production deployments with high availability:
+### Database Management
 
 ```bash
-# Deploy with Docker Swarm
-./setup.sh --swarm
+# Access database directly
+docker compose exec database mysql -u root -p
 
-# Or manually
-docker swarm init
-docker build -t accounting_panel:latest .
-docker build -t accounting_panel_cron:latest -f docker/cron/Dockerfile .
-docker stack deploy -c docker-swarm.yml accounting-panel
+# Create database backup
+docker compose exec database mysqldump -u root -p accounting_panel > backup.sql
+
+# Restore database backup
+docker compose exec -T database mysql -u root -p accounting_panel < backup.sql
+
+# View database logs
+docker compose logs database
 ```
 
-### Swarm Features
-
-- **Load balancing**: Multiple app replicas
-- **High availability**: Automatic failover
-- **Resource limits**: CPU and memory constraints
-- **Rolling updates**: Zero-downtime deployments
-- **Service discovery**: Automatic service networking
-
-### Swarm Management
-
-```bash
-# View stack services
-docker stack services accounting-panel
-
-# Scale services
-docker service scale accounting-panel_app=3
-
-# Update services
-docker service update accounting-panel_app
-
-# Remove stack
-docker stack rm accounting-panel
-```
-
-## 📊 Monitoring and Logs
-
-### Log Locations
-
-- **Application logs**: `logs/` directory
-- **Cron logs**: `logs/cron.log`
-- **Health checks**: `logs/health.log`
-- **Caddy logs**: Available via `docker-compose logs caddy`
+## 🔍 Monitoring and Debugging
 
 ### Health Checks
 
-Built-in health checks for:
-- Database connectivity
-- PHP-FPM process
-- Web server response
-- Application functionality
+All services include health checks:
 
 ```bash
-# Check service health
-docker-compose ps
+# Check container health
+docker compose ps
 
 # Manual health check
 curl -f http://localhost/health
 
-# View health check logs
-docker-compose logs caddy | grep health
-```
-
-## 🔐 Security
-
-### Default Security Measures
-
-- **Secure passwords**: Generated automatically
-- **File permissions**: Proper ownership and modes
-- **Network isolation**: Services communicate via private network
-- **Access restrictions**: Sensitive files blocked by Caddy
-- **Security headers**: XSS protection, CSRF, etc.
-
-### Production Security
-
-For production deployments:
-
-1. **Change default passwords**:
-   ```bash
-   # Edit .env file
-   nano .env
-   # Update passwords and restart services
-   docker-compose down && docker-compose up -d
-   ```
-
-2. **Use HTTPS**:
-   ```bash
-   # Update APP_URL in .env
-   APP_URL=https://your-domain.com
-   APP_DOMAIN=your-domain.com
-   SESSION_SECURE=true
-   ```
-
-3. **Firewall configuration**:
-   ```bash
-   # Only expose necessary ports
-   ufw allow 80,443/tcp
-   ufw deny 3306,8080/tcp
-   ```
-
-4. **Regular updates**:
-   ```bash
-   # Update Docker images
-   docker-compose pull
-   docker-compose up -d
-   ```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Database Connection Failed
-```bash
-# Check database status
-docker-compose ps database
-
-# Check logs
-docker-compose logs database
-
-# Restart database
-docker-compose restart database
-```
-
-#### Permission Errors
-```bash
-# Fix permissions
-sudo chown -R $USER:$USER .
-chmod -R 755 .
-chmod -R 777 logs sessions public/uploads
-```
-
-#### Port Conflicts
-```bash
-# Change ports in docker-compose.yml
-ports:
-  - "8080:80"  # Use different port
-  - "8443:443"
-```
-
-#### Container Build Issues
-```bash
-# Clean build
-docker-compose down --volumes
-docker system prune -a
-docker-compose build --no-cache
+# Check service dependencies
+docker compose config
 ```
 
 ### Debug Mode
@@ -339,76 +284,263 @@ Enable debug mode for troubleshooting:
 APP_DEBUG=true
 APP_ENV=development
 
+# Restart application
+docker compose restart app
+```
+
+### Log Analysis
+
+```bash
+# View application logs
+docker compose logs -f app
+
+# View error logs
+docker compose exec app tail -f logs/app.log
+
+# View access logs
+docker compose exec caddy tail -f /var/log/caddy/access.log
+
+# View database logs
+docker compose logs database
+```
+
+## 🔄 Backup and Recovery
+
+### Automated Backups
+
+```bash
+# Add to crontab for daily backups
+0 2 * * * cd /path/to/accounting-panel && docker compose exec -T database mysqldump -u root -p${DB_ROOT_PASSWORD} accounting_panel > backups/$(date +%Y%m%d).sql
+```
+
+### Manual Backup
+
+```bash
+# Create backup directory
+mkdir -p backups
+
+# Database backup
+docker compose exec database mysqldump -u root -p${DB_ROOT_PASSWORD} accounting_panel > backups/database_$(date +%Y%m%d_%H%M%S).sql
+
+# File uploads backup
+docker compose exec app tar -czf - /var/www/html/public/uploads > backups/uploads_$(date +%Y%m%d_%H%M%S).tar.gz
+
+# Configuration backup
+cp .env backups/env_$(date +%Y%m%d_%H%M%S).backup
+```
+
+### Recovery
+
+```bash
+# Restore database
+docker compose exec -T database mysql -u root -p${DB_ROOT_PASSWORD} accounting_panel < backups/database_backup.sql
+
+# Restore uploads
+docker compose exec -T app tar -xzf - -C /var/www/html/public/uploads < backups/uploads_backup.tar.gz
+```
+
+## 📊 Performance Optimization
+
+### Resource Limits
+
+Configure resource limits in `docker-compose.yml`:
+
+```yaml
+services:
+  app:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '1'
+          memory: 512M
+```
+
+### Scaling
+
+```bash
+# Scale application containers
+docker compose up -d --scale app=3
+
+# Use with load balancer
+# Configure external load balancer to distribute traffic
+```
+
+### Production Optimizations
+
+The setup script automatically applies:
+
+- **OPcache** for PHP performance
+- **Database query optimization**
+- **Static file caching**
+- **Gzip compression**
+- **Connection pooling**
+
+## 🐳 Docker Swarm Deployment
+
+For high-availability production deployments:
+
+```bash
+# Initialize Docker Swarm
+docker swarm init
+
+# Deploy with setup script
+./setup.sh --swarm
+
+# Or deploy manually
+docker build -t accounting_panel:latest .
+docker stack deploy -c docker-swarm.yml accounting-panel
+```
+
+### Swarm Management
+
+```bash
+# View services
+docker stack services accounting-panel
+
+# Scale services
+docker service scale accounting-panel_app=3
+
+# Update service
+docker service update accounting-panel_app
+
+# Remove stack
+docker stack rm accounting-panel
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 1. Docker Build Fails
+
+```bash
+# Check Docker daemon
+docker info
+
+# Clean Docker cache
+docker system prune -a
+
+# Rebuild without cache
+docker compose build --no-cache
+```
+
+#### 2. Port Conflicts
+
+```bash
+# Check port usage
+netstat -tulpn | grep :80
+
+# Use different ports
+HTTP_PORT=8080 HTTPS_PORT=8443 docker compose up -d
+```
+
+#### 3. Database Connection Issues
+
+```bash
+# Check database health
+docker compose exec database mysql -u root -p${DB_ROOT_PASSWORD} -e "SELECT 1"
+
+# Restart database
+docker compose restart database
+
+# Check database logs
+docker compose logs database
+```
+
+#### 4. Permission Errors
+
+```bash
+# Fix file permissions
+sudo chown -R $USER:$USER .
+docker compose exec app chown -R www-data:www-data /var/www/html
+```
+
+#### 5. CSRF Token Issues
+
+```bash
+# Verify domain configuration
+grep APP_DOMAIN .env
+
+# Check session settings
+grep SESSION_ .env
+
+# Restart application
+docker compose restart app
+```
+
+### Log Collection
+
+```bash
+# Collect all logs for debugging
+mkdir -p debug_logs
+docker compose logs app > debug_logs/app.log
+docker compose logs database > debug_logs/database.log
+docker compose logs caddy > debug_logs/caddy.log
+docker compose exec app cat logs/app.log > debug_logs/application.log
+```
+
+## 🔄 Updates and Maintenance
+
+### Updating the Application
+
+```bash
+# Pull latest changes
+git pull origin main
+
+# Rebuild containers
+docker compose build --no-cache
+
+# Update with zero downtime
+docker compose up -d --no-deps app
+```
+
+### Security Updates
+
+```bash
+# Update Docker images
+docker compose pull
+
+# Rebuild with latest base images
+docker compose build --no-cache --pull
+
 # Restart services
-docker-compose restart app
+docker compose up -d
 ```
 
 ## 📚 Additional Resources
 
-### Documentation
+### Documentation Links
+
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
 - [Docker Swarm Documentation](https://docs.docker.com/engine/swarm/)
-- [Caddy Documentation](https://caddyserver.com/docs/)
+- [Caddy Web Server Documentation](https://caddyserver.com/docs/)
 - [MariaDB Documentation](https://mariadb.org/documentation/)
 
 ### Support
-- Check application logs: `docker-compose logs -f app`
-- Review health checks: `curl -v http://localhost`
-- Validate configuration: `docker-compose config`
 
-## 🔄 Backup and Recovery
+- **Issues**: [GitHub Issues](https://github.com/moonshadowrev/PersonalAccounter/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/moonshadowrev/PersonalAccounter/discussions)
+- **Wiki**: [Project Wiki](https://github.com/moonshadowrev/PersonalAccounter/wiki)
+- **Releases**: [GitHub Releases](https://github.com/moonshadowrev/PersonalAccounter/releases)
 
-### Database Backup
+### Community
+
+- **Demo**: [Live Demo](https://accounting-panel.overlord.team/login)
+- **Documentation**: [Full Documentation](https://moonshadowrev.github.io/PersonalAccounter/)
+Use this Credentials for testing:
 ```bash
-# Create backup
-docker-compose exec database mysqldump -u root -p${DB_ROOT_PASSWORD} accounting_panel > backup.sql
-
-# Restore backup
-docker-compose exec -T database mysql -u root -p${DB_ROOT_PASSWORD} accounting_panel < backup.sql
+E-Mail : admin@example.com
+Password : 123456789
 ```
-
-### Full Backup
-```bash
-# Backup volumes
-docker run --rm -v accounting_panel_db_data:/data -v $(pwd):/backup busybox tar czf /backup/db_backup.tar.gz /data
-docker run --rm -v accounting_panel_app_uploads:/data -v $(pwd):/backup busybox tar czf /backup/uploads_backup.tar.gz /data
-```
-
-### Automated Backups
-```bash
-# Add to crontab
-0 2 * * * cd /path/to/project && docker-compose exec database mysqldump -u root -p${DB_ROOT_PASSWORD} accounting_panel > backups/$(date +%Y%m%d_%H%M%S).sql
-```
-
-## 📈 Performance Optimization
-
-### Resource Limits
-```yaml
-# In docker-compose.yml
-deploy:
-  resources:
-    limits:
-      cpus: '2'
-      memory: 1G
-    reservations:
-      cpus: '1'
-      memory: 512M
-```
-
-### Caching
-- OPcache enabled for PHP
-- Static file caching via Caddy
-- Database query optimization
-
-### Scaling
-```bash
-# Scale application containers
-docker-compose up -d --scale app=3
-
-# Use load balancer
-# Configure external load balancer to distribute traffic
-```
-
 ---
 
-**Happy accounting with Docker! 🐳📊** 
+**🎉 Ready to start? Run the one-line installer:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
+```
+
+**Happy accounting! 📊💰** 

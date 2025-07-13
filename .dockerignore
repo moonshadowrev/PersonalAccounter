@@ -8,7 +8,10 @@ Dockerfile
 docker-compose.yml
 docker-swarm.yml
 .dockerignore
-docker/
+
+# Exclude specific docker directories but keep config files
+docker/mariadb/
+docker/cron/Dockerfile
 
 # Documentation
 README.md
