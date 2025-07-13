@@ -756,16 +756,26 @@ class ExpenseController extends Controller {
             $filePath = $this->expenseModel->exportToExcel(null, $filters);
             
             if ($filePath && file_exists($filePath)) {
+                // Create safe path using only basename to prevent path traversal
+                $tempDir = sys_get_temp_dir();
+                $safeFileName = basename($filePath);
+                $safeFilePath = $tempDir . DIRECTORY_SEPARATOR . $safeFileName;
+                
+                // Verify the safe path exists and is the same as original
+                if (!file_exists($safeFilePath) || realpath($safeFilePath) !== realpath($filePath)) {
+                    throw new Exception('Invalid file path');
+                }
+                
                 $fileName = 'expenses_' . date('Y-m-d_H-i-s') . '.xlsx';
                 
                 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
                 header('Content-Disposition: attachment; filename="' . $fileName . '"');
-                header('Content-Length: ' . filesize($filePath));
+                header('Content-Length: ' . filesize($safeFilePath));
                 
-                readfile($filePath);
+                readfile($safeFilePath);
                 
                 // Clean up temporary file
-                unlink($filePath);
+                unlink($safeFilePath);
                 exit();
             } else {
                 FlashMessage::error('Failed to generate export file.');

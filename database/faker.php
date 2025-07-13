@@ -17,7 +17,7 @@ try {
     $services = require_once __DIR__ . '/../bootstrap/app.php';
     $database = $services['database'];
 } catch (Exception $e) {
-    echo "Error: Could not bootstrap application: " . $e->getMessage() . "\n";
+    echo "Error: Could not bootstrap application. Please check your configuration.\n";
     echo "Make sure your .env file is configured properly.\n";
     exit(1);
 }

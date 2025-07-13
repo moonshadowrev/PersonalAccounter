@@ -95,8 +95,14 @@ class ApiMiddleware {
      * API CORS middleware
      */
     public static function cors($request) {
-        // Set CORS headers for API
-        header('Access-Control-Allow-Origin: *');
+        // Set CORS headers for API - restrict to specific origins
+        $allowedOrigins = ['https://yourdomain.com', 'https://app.yourdomain.com'];
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+        
+        if (in_array($origin, $allowedOrigins)) {
+            header('Access-Control-Allow-Origin: ' . $origin);
+        }
+        
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key');
         header('Access-Control-Max-Age: 86400');
@@ -119,6 +125,7 @@ class ApiMiddleware {
         header('X-Frame-Options: DENY');
         header('X-XSS-Protection: 1; mode=block');
         header('Referrer-Policy: no-referrer');
+        header('Content-Security-Policy: frame-ancestors \'none\'');
         header('Cache-Control: no-cache, no-store, must-revalidate');
         header('Pragma: no-cache');
         header('Expires: 0');
