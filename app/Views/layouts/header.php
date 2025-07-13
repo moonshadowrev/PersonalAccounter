@@ -1,4 +1,13 @@
 <?php defined('APP_RAN') or die('Direct access not allowed'); ?>
+<?php
+// Add basic security headers
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("X-XSS-Protection: 1; mode=block");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+// Basic CSP - can be enhanced as needed
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://code.jquery.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self'");
+?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 <head>
@@ -28,6 +37,15 @@ function is_active($path) {
         return $current_path === '/' ? 'active' : '';
     }
     return strpos($current_path, $path) === 0 ? 'active' : '';
+}
+
+// Security helper functions
+function h($data) {
+    return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+}
+
+function safe_url($url) {
+    return htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
 }
 ?>
 

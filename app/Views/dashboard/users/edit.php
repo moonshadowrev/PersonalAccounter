@@ -21,7 +21,7 @@
             <div class="card">
                 <div class="card-body">
                     <h4 class="card-title">Update Admin Details</h4>
-                    <form action="/users/<?php echo $user['id']; ?>" method="POST" class="user-form">
+                    <form action="/users/<?php echo htmlspecialchars($user['id']); ?>" method="POST" class="user-form">
                         <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
                         <div class="mb-3">
                             <label for="name" class="form-label">Name</label>

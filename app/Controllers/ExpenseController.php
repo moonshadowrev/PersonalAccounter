@@ -648,21 +648,44 @@ class ExpenseController extends Controller {
         $userId = $_SESSION['user']['id'];
         
         // Validate file upload
-        if (empty($_FILES['excel_file']['tmp_name'])) {
+        if (empty($_FILES['excel_file']['tmp_name']) || !is_uploaded_file($_FILES['excel_file']['tmp_name'])) {
             FlashMessage::error('Please select an Excel file to import.');
             header('Location: /expenses/import');
             exit();
         }
         
         $file = $_FILES['excel_file'];
+        
+        // Check for upload errors
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            FlashMessage::error('File upload failed. Please try again.');
+            header('Location: /expenses/import');
+            exit();
+        }
+        
+        // Validate file extension
+        $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowedExtensions = ['xls', 'xlsx', 'csv'];
+        
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            FlashMessage::error('Please upload a valid Excel file (.xls, .xlsx) or CSV file (.csv).');
+            header('Location: /expenses/import');
+            exit();
+        }
+        
+        // Get actual file MIME type using finfo (more secure than $_FILES['type'])
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($file['tmp_name']);
+        
         $allowedTypes = [
             'application/vnd.ms-excel', 
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'text/csv',
-            'application/csv'
+            'application/csv',
+            'text/plain' // CSV files sometimes have this MIME type
         ];
         
-        if (!in_array($file['type'], $allowedTypes)) {
+        if (!in_array($mimeType, $allowedTypes)) {
             FlashMessage::error('Please upload a valid Excel file (.xls, .xlsx) or CSV file (.csv).');
             header('Location: /expenses/import');
             exit();
@@ -924,20 +947,46 @@ class ExpenseController extends Controller {
         }
         
         $attachmentPath = $attachments[0]; // Get first attachment
-        if (!file_exists($attachmentPath)) {
+        
+        // Security check - ensure file path is within uploads directory
+        $uploadsDir = realpath('uploads/');
+        $realAttachmentPath = realpath($attachmentPath);
+        
+        if (!$realAttachmentPath || !$uploadsDir || strpos($realAttachmentPath, $uploadsDir) !== 0) {
+            FlashMessage::error('Invalid file path.');
+            header('Location: /expenses');
+            exit();
+        }
+        
+        if (!file_exists($realAttachmentPath)) {
             FlashMessage::error('Attachment file not found.');
             header('Location: /expenses');
             exit();
         }
         
-        $fileName = basename($attachmentPath);
-        $mimeType = mime_content_type($attachmentPath);
+        // Validate file type for security
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($realAttachmentPath);
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain'];
+        
+        if (!in_array($mimeType, $allowedTypes)) {
+            FlashMessage::error('Invalid file type.');
+            header('Location: /expenses');
+            exit();
+        }
+        
+        // Sanitize filename for download
+        $fileName = basename($realAttachmentPath);
+        $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '', $fileName);
         
         header('Content-Type: ' . $mimeType);
-        header('Content-Disposition: attachment; filename="' . $fileName . '"');
-        header('Content-Length: ' . filesize($attachmentPath));
+        header('Content-Disposition: attachment; filename="' . htmlspecialchars($safeName, ENT_QUOTES, 'UTF-8') . '"');
+        header('Content-Length: ' . filesize($realAttachmentPath));
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         
-        readfile($attachmentPath);
+        readfile($realAttachmentPath);
         exit();
     }
 
@@ -1030,9 +1079,31 @@ class ExpenseController extends Controller {
      * Handle file upload
      */
     private function handleFileUpload($file, $userId) {
+        // Validate file exists and has no errors
+        if (!isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+            return false;
+        }
+        
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return false;
+        }
+        
+        // Get actual file MIME type using finfo (more secure than $_FILES['type'])
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($file['tmp_name']);
+        
         $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain'];
         
-        if (!in_array($file['type'], $allowedTypes)) {
+        if (!in_array($mimeType, $allowedTypes)) {
+            return false;
+        }
+        
+        // Validate file extension
+        $originalName = basename($file['name']);
+        $fileExtension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt'];
+        
+        if (!in_array($fileExtension, $allowedExtensions)) {
             return false;
         }
         
@@ -1045,13 +1116,30 @@ class ExpenseController extends Controller {
             return false;
         }
         
-        $uploadDir = 'uploads/expenses/' . $userId . '/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        // Sanitize user ID to prevent path traversal
+        $sanitizedUserId = (int)$userId;
+        if ($sanitizedUserId <= 0) {
+            return false;
         }
         
-        $fileName = uniqid() . '_' . $file['name'];
+        $uploadDir = 'uploads/expenses/' . $sanitizedUserId . '/';
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0755, true)) {
+                return false;
+            }
+        }
+        
+        // Generate secure filename
+        $fileName = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $originalName);
         $filePath = $uploadDir . $fileName;
+        
+        // Additional security check - ensure the path is within uploads directory
+        $realUploadDir = realpath($uploadDir);
+        $realFilePath = realpath(dirname($filePath)) . '/' . basename($filePath);
+        
+        if (!$realUploadDir || strpos($realFilePath, $realUploadDir) !== 0) {
+            return false;
+        }
         
         if (move_uploaded_file($file['tmp_name'], $filePath)) {
             return $filePath;

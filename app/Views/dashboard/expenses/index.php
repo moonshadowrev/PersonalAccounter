@@ -149,10 +149,10 @@
                                 ];
                                 $statusColor = $statusColors[$expense['status']] ?? 'secondary';
                                 ?>
-                                <span class="badge bg-<?php echo $statusColor; ?>"><?php echo ucfirst($expense['status']); ?></span>
+                                <span class="badge bg-<?php echo htmlspecialchars($statusColor); ?>"><?php echo htmlspecialchars(ucfirst($expense['status'])); ?></span>
                             </td>
                             <td>
-                                <span class="badge bg-info"><?php echo ucfirst(str_replace('_', ' ', $expense['payment_method_type'] ?? 'N/A')); ?></span>
+                                <span class="badge bg-info"><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $expense['payment_method_type'] ?? 'N/A'))); ?></span>
                             </td>
                             <td><?php echo htmlspecialchars($expense['creator_name'] ?? 'Unknown'); ?></td>
                             <td>

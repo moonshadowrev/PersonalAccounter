@@ -38,14 +38,14 @@
                         <tbody>
                         <?php foreach ($credit_cards as $card): ?>
                         <tr>
-                            <td><?php echo $card['id']; ?></td>
+                            <td><?php echo htmlspecialchars($card['id']); ?></td>
                             <td><?php echo htmlspecialchars($card['name']); ?></td>
                             <td><?php echo htmlspecialchars($card['user_name'] ?? 'Unknown'); ?></td>
-                            <td>**** **** **** <?php echo $card['card_number_last4']; ?></td>
+                            <td>**** **** **** <?php echo htmlspecialchars($card['card_number_last4']); ?></td>
                             <td><?php echo htmlspecialchars($card['expiry_month'] . '/' . $card['expiry_year']); ?></td>
                             <td>
-                                <a href="/credit-cards/<?php echo $card['id']; ?>/edit" class="btn btn-sm btn-info">Edit</a>
-                                <form action="/credit-cards/<?php echo $card['id']; ?>/delete" method="POST" style="display:inline;">
+                                <a href="/credit-cards/<?php echo htmlspecialchars($card['id']); ?>/edit" class="btn btn-sm btn-info">Edit</a>
+                                <form action="/credit-cards/<?php echo htmlspecialchars($card['id']); ?>/delete" method="POST" style="display:inline;">
                                     <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
                                     <button type="submit" class="btn btn-sm btn-danger delete-btn">Delete</button>
                                 </form>

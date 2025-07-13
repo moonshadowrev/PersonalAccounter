@@ -30,17 +30,17 @@
                             ];
                             $statusColor = $statusColors[$expense['status']] ?? 'secondary';
                             ?>
-                            <span class="badge bg-<?php echo $statusColor; ?> fs-6"><?php echo ucfirst($expense['status']); ?></span>
+                            <span class="badge bg-<?php echo htmlspecialchars($statusColor); ?> fs-6"><?php echo htmlspecialchars(ucfirst($expense['status'])); ?></span>
                         </div>
                         <div class="btn-group" role="group">
-                            <a href="/expenses/<?php echo $expense['id']; ?>/edit" class="btn btn-sm btn-outline-primary">
+                            <a href="/expenses/<?php echo htmlspecialchars($expense['id']); ?>/edit" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
                             <?php if ($expense['status'] === 'pending'): ?>
-                                <button type="button" class="btn btn-sm btn-outline-success" onclick="approveExpense(<?php echo $expense['id']; ?>)">
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="approveExpense(<?php echo htmlspecialchars($expense['id']); ?>)">
                                     <i class="fas fa-check"></i> Approve
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="rejectExpense(<?php echo $expense['id']; ?>)">
+                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="rejectExpense(<?php echo htmlspecialchars($expense['id']); ?>)">
                                     <i class="fas fa-times"></i> Reject
                                 </button>
                             <?php endif; ?>
@@ -108,7 +108,7 @@
                     <div class="row mb-4">
                         <div class="col-md-12">
                             <h6 class="text-muted">Payment Method</h6>
-                            <span class="badge bg-info fs-6"><?php echo ucfirst(str_replace('_', ' ', $expense['payment_method_type'] ?? 'N/A')); ?></span>
+                            <span class="badge bg-info fs-6"><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $expense['payment_method_type'] ?? 'N/A'))); ?></span>
                             
                             <?php
                             // Display payment source name based on type
@@ -262,7 +262,7 @@
                             ];
                             $transactionStatusColor = $transactionStatusColors[$transaction['status']] ?? 'secondary';
                             ?>
-                            <span class="badge bg-<?php echo $transactionStatusColor; ?>"><?php echo ucfirst($transaction['status']); ?></span>
+                            <span class="badge bg-<?php echo htmlspecialchars($transactionStatusColor); ?>"><?php echo htmlspecialchars(ucfirst($transaction['status'])); ?></span>
                         </div>
                     </div>
                     <div class="mb-2">

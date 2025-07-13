@@ -127,9 +127,9 @@
                                                         <?php endif; ?>
                                                     </td>
                                                     <td>
-                                                                                                <form method="POST" action="/profile/api-keys/<?= $key['id'] ?>/delete" class="d-inline" 
-                                              onsubmit="return confirm('Are you sure you want to permanently delete this API key? This action cannot be undone and will immediately invalidate all requests using this key.')">
-                                            <input type="hidden" name="_token" value="<?= $csrf_token ?>">
+                                                                                                                                                <form method="POST" action="/profile/api-keys/<?php echo htmlspecialchars($key['id']); ?>/delete" class="d-inline" 
+                                                      onsubmit="return confirm('Are you sure you want to permanently delete this API key? This action cannot be undone and will immediately invalidate all requests using this key.')">
+                                            <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                 <i class="fas fa-trash"></i> Delete
                                             </button>
@@ -220,7 +220,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" name="_token" value="<?= $csrf_token ?>">
+                                                <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
                     
                     <div class="mb-3">
                         <label for="name" class="form-label">API Key Name *</label>

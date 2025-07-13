@@ -9,7 +9,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Subscriptions</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="total-subscriptions"><?php echo $stats['total_subscriptions']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="total-subscriptions"><?php echo htmlspecialchars($stats['total_subscriptions']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-list fa-2x text-primary opacity-50"></i>
@@ -24,7 +24,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Subscriptions</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="active-subscriptions"><?php echo $stats['active_subscriptions']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="active-subscriptions"><?php echo htmlspecialchars($stats['active_subscriptions']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-check-circle fa-2x text-success opacity-50"></i>
@@ -39,7 +39,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Monthly Recurring</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="monthly-cost">$<?php echo number_format($stats['total_monthly_cost'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="monthly-cost">$<?php echo number_format(htmlspecialchars($stats['total_monthly_cost']), 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-dollar-sign fa-2x text-info opacity-50"></i>
@@ -54,7 +54,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Annual Recurring</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="annual-cost">$<?php echo number_format($stats['total_annual_cost'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="annual-cost">$<?php echo number_format(htmlspecialchars($stats['total_annual_cost']), 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-calendar-alt fa-2x text-warning opacity-50"></i>
@@ -73,7 +73,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-expense-primary text-uppercase mb-1">Total Expenses</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="total-expenses"><?php echo $expense_stats['total_expenses']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="total-expenses"><?php echo htmlspecialchars($expense_stats['total_expenses']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-receipt fa-2x text-expense-primary opacity-50"></i>
@@ -88,7 +88,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-expense-success text-uppercase mb-1">Paid Expenses</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="paid-expenses"><?php echo $expense_stats['paid_expenses']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="paid-expenses"><?php echo htmlspecialchars($expense_stats['paid_expenses']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-check-double fa-2x text-expense-success opacity-50"></i>
@@ -103,7 +103,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-expense-warning text-uppercase mb-1">Total Amount</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="total-expense-amount">$<?php echo number_format($expense_stats['total_amount'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="total-expense-amount">$<?php echo number_format(htmlspecialchars($expense_stats['total_amount']), 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-money-bill-wave fa-2x text-expense-warning opacity-50"></i>
@@ -118,7 +118,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-expense-info text-uppercase mb-1">Avg Per Expense</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="avg-expense-amount">$<?php echo number_format($expense_stats['avg_expense_amount'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="avg-expense-amount">$<?php echo number_format(htmlspecialchars($expense_stats['avg_expense_amount']), 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-chart-bar fa-2x text-expense-info opacity-50"></i>
@@ -138,7 +138,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Expired</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="expired-subscriptions"><?php echo $stats['expired_subscriptions']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="expired-subscriptions"><?php echo htmlspecialchars($stats['expired_subscriptions']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-clock fa-2x text-secondary opacity-50"></i>
@@ -153,7 +153,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Cancelled</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="cancelled-subscriptions"><?php echo $stats['cancelled_subscriptions']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="cancelled-subscriptions"><?php echo htmlspecialchars($stats['cancelled_subscriptions']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-times-circle fa-2x text-danger opacity-50"></i>
@@ -168,7 +168,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-light text-uppercase mb-1">Avg Per Service</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="avg-spend">$<?php echo number_format($stats['avg_monthly_spend'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="avg-spend">$<?php echo number_format(htmlspecialchars($stats['avg_monthly_spend']), 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-chart-line fa-2x text-light opacity-50"></i>
@@ -183,7 +183,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-purple text-uppercase mb-1">One-time Costs</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="onetime-cost">$<?php echo number_format($stats['total_onetime_cost'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="onetime-cost">$<?php echo number_format(htmlspecialchars($stats['total_onetime_cost']), 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-hand-holding-usd fa-2x text-purple opacity-50"></i>
@@ -202,7 +202,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-expense-pending text-uppercase mb-1">Pending Approval</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="pending-expenses"><?php echo $expense_stats['pending_expenses']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="pending-expenses"><?php echo htmlspecialchars($expense_stats['pending_expenses']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-hourglass-half fa-2x text-expense-pending opacity-50"></i>
@@ -217,7 +217,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-expense-approved text-uppercase mb-1">Approved</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="approved-expenses"><?php echo $expense_stats['approved_expenses']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="approved-expenses"><?php echo htmlspecialchars($expense_stats['approved_expenses']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-check fa-2x text-expense-approved opacity-50"></i>
@@ -232,7 +232,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-expense-danger text-uppercase mb-1">Rejected</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="rejected-expenses"><?php echo $expense_stats['rejected_expenses']; ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="rejected-expenses"><?php echo htmlspecialchars($expense_stats['rejected_expenses']); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-times fa-2x text-expense-danger opacity-50"></i>
@@ -247,7 +247,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-expense-tax text-uppercase mb-1">Total Tax</div>
-                        <div class="h5 mb-0 font-weight-bold text-light" id="total-tax">$<?php echo number_format($expense_stats['total_tax'], 2); ?></div>
+                        <div class="h5 mb-0 font-weight-bold text-light" id="total-tax">$<?php echo number_format(htmlspecialchars($expense_stats['total_tax']), 2); ?></div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-percentage fa-2x text-expense-tax opacity-50"></i>

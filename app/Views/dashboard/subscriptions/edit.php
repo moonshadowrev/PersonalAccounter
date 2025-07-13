@@ -21,7 +21,7 @@
             <div class="card">
                 <div class="card-body">
                     <h4 class="card-title">Update Subscription Details</h4>
-                    <form action="/subscriptions/<?php echo $subscription['id']; ?>" method="POST">
+                                                <form action="/subscriptions/<?php echo htmlspecialchars($subscription['id']); ?>" method="POST">
                         <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
                         <div class="mb-3">
                             <label for="name" class="form-label">Subscription Name</label>
@@ -50,8 +50,8 @@
                             <select id="credit_card_id" name="credit_card_id" class="form-select" required>
                                 <option value="">Select a card</option>
                                 <?php foreach ($credit_cards as $card): ?>
-                                    <option value="<?php echo $card['id']; ?>" <?php if ($card['id'] == $subscription['credit_card_id']) echo 'selected'; ?>>
-                                        <?php echo htmlspecialchars($card['name']); ?> (**** <?php echo $card['card_number_last4']; ?>)
+                                                                    <option value="<?php echo htmlspecialchars($card['id']); ?>" <?php if ($card['id'] == $subscription['credit_card_id']) echo 'selected'; ?>>
+                                    <?php echo htmlspecialchars($card['name']); ?> (**** <?php echo htmlspecialchars($card['card_number_last4']); ?>)
                                     </option>
                                 <?php endforeach; ?>
                             </select>

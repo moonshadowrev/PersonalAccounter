@@ -51,7 +51,7 @@
                             <select id="credit_card_id" name="credit_card_id" class="form-select" required>
                                 <option value="">Select a card</option>
                                 <?php foreach ($credit_cards as $card): ?>
-                                    <option value="<?php echo $card['id']; ?>"><?php echo htmlspecialchars($card['name']); ?> (**** <?php echo $card['card_number_last4']; ?>)</option>
+                                    <option value="<?php echo htmlspecialchars($card['id']); ?>"><?php echo htmlspecialchars($card['name']); ?> (**** <?php echo htmlspecialchars($card['card_number_last4']); ?>)</option>
                                 <?php endforeach; ?>
                             </select>
                         </div>

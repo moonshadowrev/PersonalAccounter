@@ -41,7 +41,7 @@
                         <tbody>
                         <?php foreach ($bankAccounts as $account): ?>
                         <tr>
-                            <td><?php echo $account['id']; ?></td>
+                            <td><?php echo htmlspecialchars($account['id']); ?></td>
                             <td><?php echo htmlspecialchars($account['name']); ?></td>
                             <td><?php echo htmlspecialchars($account['bank_name']); ?></td>
                             <td>
@@ -58,8 +58,8 @@
                             <td><?php echo htmlspecialchars($account['user_name'] ?? 'Unknown'); ?></td>
                             <td><?php echo date('M j, Y', strtotime($account['created_at'])); ?></td>
                             <td>
-                                <a href="/bank-accounts/<?php echo $account['id']; ?>/edit" class="btn btn-sm btn-info">Edit</a>
-                                <form action="/bank-accounts/<?php echo $account['id']; ?>/delete" method="POST" style="display:inline;">
+                                <a href="/bank-accounts/<?php echo htmlspecialchars($account['id']); ?>/edit" class="btn btn-sm btn-info">Edit</a>
+                                <form action="/bank-accounts/<?php echo htmlspecialchars($account['id']); ?>/delete" method="POST" style="display:inline;">
                                     <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
                                     <button type="submit" class="btn btn-sm btn-danger delete-btn">Delete</button>
                                 </form>

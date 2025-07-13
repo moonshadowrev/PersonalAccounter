@@ -181,7 +181,7 @@
                                 <?php foreach ($attachments as $attachment): ?>
                                 <div class="d-flex align-items-center border rounded p-2">
                                     <i class="fas fa-paperclip text-muted me-2"></i>
-                                    <a href="/uploads/expenses/<?php echo $expense['user_id']; ?>/<?php echo basename($attachment); ?>" 
+                                    <a href="/uploads/expenses/<?php echo htmlspecialchars($expense['user_id']); ?>/<?php echo htmlspecialchars(basename($attachment)); ?>" 
                                        class="text-decoration-none me-2" 
                                        download="<?php echo basename($attachment); ?>">
                                         <?php echo htmlspecialchars(basename($attachment)); ?>

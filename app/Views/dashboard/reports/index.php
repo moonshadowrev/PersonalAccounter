@@ -24,7 +24,7 @@
                     <?php if (!empty($filter_dates['from']) && !empty($filter_dates['to'])): ?>
                         <div class="alert alert-info">
                             <i class="mdi mdi-information"></i> 
-                            Showing transactions from <strong><?php echo $filter_dates['from']; ?></strong> to <strong><?php echo $filter_dates['to']; ?></strong>
+                            Showing transactions from <strong><?php echo htmlspecialchars($filter_dates['from']); ?></strong> to <strong><?php echo htmlspecialchars($filter_dates['to']); ?></strong>
                             (<?php echo count($transactions); ?> transactions found)
                         </div>
                     <?php else: ?>
@@ -250,7 +250,7 @@
                         <tbody>
                             <?php foreach ($transactions as $transaction): ?>
                             <tr>
-                                <td><?php echo $transaction['id']; ?></td>
+                                <td><?php echo htmlspecialchars($transaction['id']); ?></td>
                                 <td>
                                     <span class="badge bg-<?php echo $transaction['transaction_type'] === 'subscription' ? 'info' : 'purple'; ?>">
                                         <?php echo ucfirst($transaction['transaction_type']); ?>

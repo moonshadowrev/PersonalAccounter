@@ -23,7 +23,7 @@
                     <h4 class="card-title">Edit Category Details</h4>
                     <p class="card-title-desc">Update the category information below.</p>
                     
-                    <form action="/categories/<?php echo $category['id']; ?>" method="POST">
+                    <form action="/categories/<?php echo htmlspecialchars($category['id']); ?>" method="POST">
                         <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
                         <input type="hidden" name="_method" value="PUT">
                         
@@ -85,7 +85,7 @@
 </div> <!-- container-fluid -->
 
 <!-- Delete Form (hidden) -->
-<form id="delete-form" action="/categories/<?php echo $category['id']; ?>/delete" method="POST" style="display: none;">
+                    <form id="delete-form" action="/categories/<?php echo htmlspecialchars($category['id']); ?>/delete" method="POST" style="display: none;">
     <input type="hidden" name="_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
 </form>
 
