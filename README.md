@@ -21,17 +21,6 @@ cd PersonalAccounter
 bash ./setup.sh
 ```
 
-
-# Demo Access
-
-You can see [PersonalAccounter](https://accounting-panel.overlord.team/login) in LiveAction
-
-Use this Credentials for testing:
-```bash
-E-Mail : admin@example.com
-Password : 123456789
-```
-
 ## 🌟 Features
 
 ### 💰 **Expense Management**
