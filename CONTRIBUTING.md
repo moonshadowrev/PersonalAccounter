@@ -648,7 +648,7 @@ if (Config::get('debug')) {
 
 - **GitHub Issues**: For bugs and feature requests
 - **GitHub Discussions**: For questions and general discussion
-- **Email**: maintainers@your-domain.com for urgent matters
+- **Email**: info@overlord.team for urgent matters
 
 ### Response Times
 
