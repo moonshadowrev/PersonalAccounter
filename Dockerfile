@@ -101,6 +101,11 @@ RUN echo '#!/bin/bash' > /usr/local/bin/start-app.sh \
     && echo 'done' >> /usr/local/bin/start-app.sh \
     && echo 'echo "Database connected successfully!"' >> /usr/local/bin/start-app.sh \
     && echo '' >> /usr/local/bin/start-app.sh \
+    && echo '# Ensure proper permissions on critical directories' >> /usr/local/bin/start-app.sh \
+    && echo 'echo "Fixing permissions..."' >> /usr/local/bin/start-app.sh \
+    && echo 'chown -R www-data:www-data /var/www/html/logs /var/www/html/sessions /var/www/html/public/uploads 2>/dev/null || true' >> /usr/local/bin/start-app.sh \
+    && echo 'chmod -R 755 /var/www/html/logs /var/www/html/sessions /var/www/html/public/uploads 2>/dev/null || true' >> /usr/local/bin/start-app.sh \
+    && echo '' >> /usr/local/bin/start-app.sh \
     && echo '# Run Docker-specific migrations if control script exists' >> /usr/local/bin/start-app.sh \
     && echo 'if [ -f "/var/www/html/control" ]; then' >> /usr/local/bin/start-app.sh \
     && echo '  echo "Running Docker migrations..."' >> /usr/local/bin/start-app.sh \
