@@ -206,7 +206,7 @@ Usage:
 ```bash
 git clone https://github.com/moonshadowrev/PersonalAccounter
 cd PersonalAccounter
-bash ./setup.sh
+bash ./setup.sh --skip-clone
 ```
 
 ## 🛠️ New Management Tools (v1.0.2)
