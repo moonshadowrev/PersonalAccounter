@@ -1,26 +1,37 @@
-FROM php:8.2-cli
+FROM php:8.2-cli-alpine
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    cron \
+RUN apk add --no-cache \
+    dcron \
     mariadb-client \
     curl \
+    wget \
+    bash \
     libpng-dev \
-    libonig-dev \
-    libxml2-dev \
+    libwebp-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libzip-dev \
     zip \
     unzip \
-    libzip-dev \
-    && rm -rf /var/lib/apt/lists/*
+    icu-dev \
+    oniguruma-dev \
+    libxml2-dev \
+    && rm -rf /var/cache/apk/*
 
-# Install PHP extensions
-RUN docker-php-ext-install \
+# Configure and install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install \
     pdo_mysql \
     mbstring \
     xml \
     zip \
     gd \
-    opcache
+    opcache \
+    bcmath \
+    exif \
+    intl \
+    pcntl
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -28,22 +39,34 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy cron configuration
-COPY docker/cron/crontab /etc/cron.d/accounting-panel-cron
+# Copy crontab
+COPY docker/cron/crontab /etc/crontabs/root
 
-# Set proper permissions for cron
-RUN chmod 0644 /etc/cron.d/accounting-panel-cron \
-    && crontab /etc/cron.d/accounting-panel-cron
+# Create necessary directories and files
+RUN mkdir -p /var/log/cron \
+    && mkdir -p /var/www/html/logs \
+    && touch /var/log/cron.log \
+    && chmod 600 /etc/crontabs/root
 
-# Create cron log file
-RUN touch /var/log/cron.log
-
-# Create the startup script
+# Copy startup script
 COPY docker/cron/start-cron.sh /usr/local/bin/start-cron.sh
 RUN chmod +x /usr/local/bin/start-cron.sh
 
-# Expose log volume
-VOLUME ["/var/www/html/logs"]
+# Create a simple health check script
+RUN echo '#!/bin/sh' > /usr/local/bin/health-check.sh \
+    && echo 'if pgrep crond > /dev/null; then' >> /usr/local/bin/health-check.sh \
+    && echo '  exit 0' >> /usr/local/bin/health-check.sh \
+    && echo 'else' >> /usr/local/bin/health-check.sh \
+    && echo '  exit 1' >> /usr/local/bin/health-check.sh \
+    && echo 'fi' >> /usr/local/bin/health-check.sh \
+    && chmod +x /usr/local/bin/health-check.sh
 
-# Start cron service
-CMD ["/usr/local/bin/start-cron.sh"] 
+# Set proper permissions
+RUN chmod 755 /var/www/html \
+    && chmod 755 /var/www/html/logs
+
+# Use a different approach - run as root and disable setpgid
+USER root
+
+# Command to run
+ENTRYPOINT ["/usr/local/bin/start-cron.sh"] 

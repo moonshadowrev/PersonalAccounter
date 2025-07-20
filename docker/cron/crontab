@@ -1,14 +1,12 @@
 # Accounting Panel Cron Jobs
 # Run consolidated scheduler every minute
-* * * * * root cd /var/www/html && php control schedule cron >> /var/www/html/logs/cron.log 2>&1
+* * * * * cd /var/www/html && php control schedule cron >> /var/www/html/logs/cron.log 2>&1
 
 # Cleanup old logs weekly (Sunday at 2 AM)
-0 2 * * 0 root find /var/www/html/logs -name "*.log" -mtime +7 -delete
+0 2 * * 0 find /var/www/html/logs -name "*.log" -mtime +7 -delete
 
 # Clear PHP opcache daily at 3 AM
-0 3 * * * root cd /var/www/html && php -r "opcache_reset();" >> /var/www/html/logs/cron.log 2>&1
+0 3 * * * cd /var/www/html && php -r "opcache_reset();" >> /var/www/html/logs/cron.log 2>&1
 
 # Health check - log system status every hour
-0 * * * * root cd /var/www/html && echo "$(date): System health check" >> /var/www/html/logs/health.log
-
-# Ensure proper line ending 
+0 * * * * cd /var/www/html && echo "$(date): System health check" >> /var/www/html/logs/health.log 

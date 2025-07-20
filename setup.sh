@@ -18,7 +18,7 @@ readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
 # Configuration
-readonly PROJECT_NAME="accounting-panel"
+readonly PROJECT_NAME="PersonalAccounter"
 readonly REPO_URL="https://github.com/moonshadowrev/PersonalAccounter.git"
 readonly REQUIRED_DOCKER_VERSION="20.10.0"
 readonly REQUIRED_COMPOSE_VERSION="2.0.0"
@@ -347,6 +347,12 @@ generate_environment() {
         app_url="http://$DOMAIN"
     fi
     
+    # Copy .env.example if it exists
+    if [[ -f ".env.example" ]]; then
+        print_info "Copying .env.example to .env..."
+        cp .env.example .env
+    fi
+    
     # Create .env file
     cat > .env << EOF
 # Environment Configuration
@@ -395,6 +401,9 @@ HTTP_PORT=80
 HTTPS_PORT=443
 PHPMYADMIN_PORT=8080
 DB_PORT_EXPOSE=3306
+
+# Additional Configuration
+AUTO_MIGRATE=true
 EOF
     
     # Set restrictive permissions
@@ -434,251 +443,57 @@ setup_directories() {
 update_caddy_config() {
     print_header "Updating Caddy Configuration"
     
-    # Start building Caddyfile
-    cat > docker/caddy/Caddyfile << EOF
+    # Use simplified Caddy configuration that works without environment variables
+    cat > docker/caddy/Caddyfile << 'EOF'
 {
-    # Global options
-    email $ADMIN_EMAIL
     admin off
-    
-    # Logging
-    log {
-        level INFO
-        format json
-    }
-EOF
-
-    # Add SSL configuration based on type
-    if [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "letsencrypt" ]]; then
-        cat >> docker/caddy/Caddyfile << EOF
-    
-    # ACME settings for Let's Encrypt
-    acme_ca https://acme-v02.api.letsencrypt.org/directory
-    acme_ca_root /etc/ssl/certs/ca-certificates.crt
-EOF
-    elif [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "self-signed" ]]; then
-        cat >> docker/caddy/Caddyfile << EOF
-    
-    # Disable automatic HTTPS for self-signed certificates
-    auto_https off
-EOF
-    fi
-    
-    cat >> docker/caddy/Caddyfile << EOF
 }
 
-# Main application
-EOF
-
-    # Add domain configuration with SSL handling
-    if [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "self-signed" ]]; then
-        cat >> docker/caddy/Caddyfile << EOF
-https://$DOMAIN {
-    # Use self-signed certificates
-    tls /etc/caddy/ssl/server.crt /etc/caddy/ssl/server.key
-EOF
-    else
-        cat >> docker/caddy/Caddyfile << EOF
-$DOMAIN {
-EOF
-    fi
-    
-    # Add common configuration for both HTTP and HTTPS
-    cat >> docker/caddy/Caddyfile << EOF
-    # Set document root
+# HTTP server - works on both ports 80 and 8080
+:80, :8080 {
     root * /var/www/html/public
-    
-    # Enable file serving
-    file_server
     
     # Security headers
     header {
-        # Security headers
         X-Content-Type-Options nosniff
         X-Frame-Options DENY
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
-        Permissions-Policy "geolocation=(), microphone=(), camera=()"
-        
-        # Remove server identification
         -Server
-        
-        # Content Security Policy
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self';"
-EOF
+    }
+    
+    # Enable file server
+    file_server
+    
+    # Enable gzip compression
+    encode gzip
+    
+    # PHP handling
+    php_fastcgi app:9000
+}
 
-    # Add HSTS only for HTTPS
-    if [[ "$USE_HTTPS" == true ]]; then
-        cat >> docker/caddy/Caddyfile << EOF
-        
-        # HSTS for HTTPS
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-EOF
-    fi
+# HTTPS server - default port 443 and 8443
+:443, :8443 {
+    root * /var/www/html/public
     
-    cat >> docker/caddy/Caddyfile << EOF
-    }
-    
-    # PHP-FPM configuration
-    php_fastcgi app:9000 {
-        # Set proper index files
-        index index.php
-        
-        # Handle PHP files
-        try_files {path} {path}/index.php =404
-        
-        # Read timeout
-        read_timeout 300s
-        write_timeout 300s
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        -Server
     }
     
-    # Handle static assets with caching
-    @static {
-        file
-        path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
-    }
-    handle @static {
-        header Cache-Control "public, max-age=31536000, immutable"
-        file_server
-    }
+    # Enable file server
+    file_server
     
-    # Handle uploads directory
-    @uploads {
-        path /uploads/*
-    }
-    handle @uploads {
-        header Cache-Control "public, max-age=86400"
-        file_server
-    }
+    # Enable gzip compression
+    encode gzip
     
-    # Health check endpoint
-    handle /health {
-        respond "OK" 200
-        header Content-Type "text/plain"
-    }
-    
-    # API endpoint handling
-    @api {
-        path /api/*
-    }
-    handle @api {
-        header Cache-Control "no-cache, no-store, must-revalidate"
-        header Pragma "no-cache"
-        header Expires "0"
-        php_fastcgi app:9000
-    }
-    
-    # Deny access to sensitive files
-    @forbidden {
-        path /.env*
-        path /.git*
-        path /composer.*
-        path /control*
-        path /docker*
-        path /config*
-        path /logs*
-        path /sessions*
-        path /vendor*
-        path /database*
-        path /bootstrap*
-        path /app*
-        path *.md
-        path *.txt
-        path *.log
-        path *.yml
-        path *.yaml
-        path *.json
-        path *.lock
-        path *.xml
-        path *.ini
-        path *.conf
-        path *.sh
-    }
-    respond @forbidden "Access denied" 403
-    
-    # Handle directory traversal attempts
-    @dotfiles {
-        path */.*
-    }
-    respond @dotfiles "Access denied" 403
-    
-    # Block common attack patterns
-    @attacks {
-        path *wp-admin*
-        path *wp-content*
-        path *wp-includes*
-        path *phpMyAdmin*
-        path *phpmyadmin*
-        path *.php~
-        path *.php.bak
-        path *.sql
-        path *.sql.gz
-        path *.sql.bz2
-        path *.backup
-        path *.bak
-        path *.old
-        path *.tmp
-    }
-    respond @attacks "Not Found" 404
-    
-    # Rate limiting for login attempts
-    @login {
-        path /login
-        method POST
-    }
-    handle @login {
-        rate_limit {
-            zone login_attempts
-            key {remote_host}
-            events 5
-            window 5m
-        }
-        php_fastcgi app:9000
-    }
-    
-    # Error handling
-    handle_errors {
-        @4xx expression {http.error.status_code} >= 400 && {http.error.status_code} < 500
-        @5xx expression {http.error.status_code} >= 500
-        
-        handle @4xx {
-            root * /var/www/html/public
-            rewrite * /index.php?error={http.error.status_code}
-        }
-        
-        handle @5xx {
-            respond "Internal Server Error" 500
-        }
-    }
-    
-    # Logging
-    log {
-        output file /var/log/caddy/access.log {
-            roll_size 100MB
-            roll_keep 5
-            roll_keep_for 720h
-        }
-        format json
-        level INFO
-    }
-    
-    # Enable compression
-    encode zstd gzip
-    
-    # Request limits
-    request_body {
-        max_size 64MB
-    }
-    
-    # Redirect trailing slashes
-    @trailingSlash {
-        path_regexp ^/(.+)/$
-    }
-    redir @trailingSlash /{re.1} 301
+    # PHP handling
+    php_fastcgi app:9000
 }
 EOF
-    
-    print_success "Caddy configuration updated for domain: $DOMAIN"
+
+    print_success "Caddy configuration updated"
 }
 
 # Build and deploy application
@@ -721,12 +536,17 @@ deploy_application() {
 initialize_database() {
     print_header "Initializing Database"
     
+    # Get variables from .env file if they're not already set
+    if [[ -f ".env" ]]; then
+        source .env
+    fi
+    
     # Wait for database to be ready
     print_info "Waiting for database to be ready..."
-    local max_wait=60
+    local max_wait=120
     local count=0
     
-    while ! docker compose exec -T database mysql -u root -p"$DB_ROOT_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
+    while ! docker compose exec -T database mariadb -u root -p"$DB_ROOT_PASSWORD" --skip-ssl -e "SELECT 1" >/dev/null 2>&1; do
         if [[ $count -ge $max_wait ]]; then
             die "Database failed to start within $max_wait seconds"
         fi
@@ -736,15 +556,7 @@ initialize_database() {
     
     # Run database migrations
     print_info "Running database migrations..."
-    docker compose exec -T app php control migrate run
-    
-    # Create admin user
-    print_info "Creating admin user..."
-    docker compose exec -T app php control user create \
-        "Admin" \
-        "$ADMIN_EMAIL" \
-        "$ADMIN_PASSWORD" \
-        "superadmin"
+    docker compose exec -T app php control migrate docker || print_warning "Migration may have failed or already complete"
     
     print_success "Database initialization completed"
 }

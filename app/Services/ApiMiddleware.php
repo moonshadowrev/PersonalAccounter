@@ -122,7 +122,6 @@ class ApiMiddleware {
     public static function securityHeaders($request) {
         header('Content-Type: application/json; charset=utf-8');
         header('X-Content-Type-Options: nosniff');
-        header('X-Frame-Options: DENY');
         header('X-XSS-Protection: 1; mode=block');
         header('Referrer-Policy: no-referrer');
         header('Content-Security-Policy: frame-ancestors \'none\'');

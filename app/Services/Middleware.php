@@ -119,7 +119,6 @@ class Middleware
         // Security Headers Middleware
         self::register('security_headers', function($request) {
             header('X-Content-Type-Options: nosniff');
-            header('X-Frame-Options: SAMEORIGIN');
             header('X-XSS-Protection: 1; mode=block');
             header('Referrer-Policy: strict-origin-when-cross-origin');
             

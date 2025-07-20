@@ -4,6 +4,8 @@ services:
     image: mariadb:10.11
     container_name: accounting_panel_db
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
@@ -14,6 +16,7 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./docker/mariadb/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+      - ./logs:/var/log/mysql
     networks:
       - accounting_network
     ports:
@@ -24,7 +27,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --bind-address=0.0.0.0
 
   # PHP-FPM Application
   app:
@@ -36,6 +39,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       - APP_ENV=${APP_ENV:-production}
       - APP_DEBUG=${APP_DEBUG:-false}
@@ -50,6 +55,7 @@ services:
       - SESSION_LIFETIME=${SESSION_LIFETIME:-0}
       - SESSION_SECURE=${SESSION_SECURE:-false}
       - SESSION_SAMESITE=${SESSION_SAMESITE:-Lax}
+      - SESSION_KEY=${SESSION_KEY}
       - LOGIN_ATTEMPTS_LIMIT=${LOGIN_ATTEMPTS_LIMIT:-5}
       - LOGIN_ATTEMPTS_TIMEOUT=${LOGIN_ATTEMPTS_TIMEOUT:-300}
       - API_MAX_FAILED_ATTEMPTS=${API_MAX_FAILED_ATTEMPTS:-5}
@@ -59,6 +65,8 @@ services:
       - LOG_CHANNEL=${LOG_CHANNEL:-file}
       - LOG_LEVEL=${LOG_LEVEL:-warning}
       - LOG_MAX_FILES=${LOG_MAX_FILES:-5}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - ./app:/var/www/html/app:cached
       - ./bootstrap:/var/www/html/bootstrap:cached
@@ -66,17 +74,19 @@ services:
       - ./database:/var/www/html/database:cached
       - ./public:/var/www/html/public:cached
       - ./vendor:/var/www/html/vendor:cached
+      - ./control:/var/www/html/control:cached
+      - ./.env:/var/www/html/.env:ro
       - app_logs:/var/www/html/logs
       - app_sessions:/var/www/html/sessions
       - app_uploads:/var/www/html/public/uploads
     networks:
       - accounting_network
     healthcheck:
-      test: ["CMD-SHELL", "pidof php-fpm || exit 1"]
+      test: ["CMD-SHELL", "pidof php-fpm > /dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   # Caddy Web Server
   caddy:
@@ -89,12 +99,15 @@ services:
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
+    env_file:
+      - .env
     volumes:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./docker/caddy/ssl:/etc/caddy/ssl:ro
       - ./public:/var/www/html/public:ro
       - caddy_data:/data
       - caddy_config:/config
+      - caddy_logs:/var/log/caddy
     networks:
       - accounting_network
     environment:
@@ -103,6 +116,7 @@ services:
       - APP_DEBUG=${APP_DEBUG:-false}
       - APP_URL=${APP_URL}
       - APP_DOMAIN=${APP_DOMAIN}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
@@ -118,6 +132,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       PMA_HOST: database
       PMA_PORT: 3306
@@ -139,36 +155,56 @@ services:
       timeout: 10s
       retries: 3
 
-  # Cron Service for Scheduled Tasks
+  # Cron Service
   cron:
-    build: 
+    build:
       context: .
       dockerfile: docker/cron/Dockerfile
     container_name: accounting_panel_cron
     restart: unless-stopped
     depends_on:
-      app:
-        condition: service_healthy
       database:
         condition: service_healthy
-    environment:
-      - APP_ENV=${APP_ENV:-production}
-      - APP_DEBUG=${APP_DEBUG:-false}
-      - DB_HOST=database
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_PORT=3306
+      app:
+        condition: service_healthy
+    env_file:
+      - .env
     volumes:
-      - ./:/var/www/html:cached
+      - ./.env:/var/www/html/.env:ro
+      - ./:/var/www/html:ro
       - app_logs:/var/www/html/logs
     networks:
       - accounting_network
     healthcheck:
-      test: ["CMD", "pgrep", "cron"]
+      test: ["CMD-SHELL", "pgrep -f start-cron.sh > /dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
+
+  # CLI Service for running php control commands
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: accounting_panel_cli
+    depends_on:
+      database:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/var/www/html/.env:ro
+      - ./:/var/www/html
+      - app_logs:/var/www/html/logs
+      - app_sessions:/var/www/html/sessions
+      - app_uploads:/var/www/html/public/uploads
+    networks:
+      - accounting_network
+    working_dir: /var/www/html
+    profiles:
+      - cli
+    entrypoint: ["tail", "-f", "/dev/null"]  # Keep container running for interactive use
 
 networks:
   accounting_network:
@@ -183,6 +219,8 @@ volumes:
   caddy_data:
     driver: local
   caddy_config:
+    driver: local
+  caddy_logs:
     driver: local
   app_logs:
     driver: local

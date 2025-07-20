@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# PersonalAccounter Docker Control Script
+# Usage: ./control-docker [command] [arguments...]
+# Examples:
+#   ./control-docker migrate run
+#   ./control-docker user list
+#   ./control-docker help
+
+set -e
+
+# Colors for output
+readonly GREEN='\033[0;32m'
+readonly BLUE='\033[0;34m'
+readonly YELLOW='\033[1;33m'
+readonly RED='\033[0;31m'
+readonly NC='\033[0m' # No Color
+
+print_usage() {
+    echo -e "${BLUE}PersonalAccounter Docker Control Script${NC}"
+    echo ""
+    echo "Usage: $0 [command] [arguments...]"
+    echo ""
+    echo -e "${GREEN}Examples:${NC}"
+    echo "  $0 migrate run          # Run database migrations"
+    echo "  $0 migrate docker       # Run Docker-specific migrations"
+    echo "  $0 user list            # List all users"
+    echo "  $0 user create \"John Doe\" \"john@example.com\" \"password\" \"admin\""
+    echo "  $0 db status            # Check database status"
+    echo "  $0 help                 # Show help"
+    echo "  $0 shell                # Open interactive shell"
+    echo ""
+    echo -e "${GREEN}Available Commands:${NC}"
+    echo "  migrate, user, db, faker, cache, serve, schedule, help"
+    echo ""
+    echo -e "${YELLOW}Note: The CLI service will be started automatically if not running${NC}"
+}
+
+# Check if Docker and Docker Compose are available
+check_docker() {
+    if ! command -v docker &> /dev/null; then
+        echo -e "${RED}Error: Docker is not installed or not in PATH${NC}"
+        exit 1
+    fi
+    
+    if ! command -v docker compose &> /dev/null && ! command -v docker-compose &> /dev/null; then
+        echo -e "${RED}Error: Docker Compose is not installed or not in PATH${NC}"
+        exit 1
+    fi
+}
+
+# Start the CLI service if it's not running
+ensure_cli_service() {
+    if ! docker compose ps --services --filter "status=running" | grep -q "cli"; then
+        echo -e "${BLUE}Starting CLI service...${NC}"
+        docker compose --profile cli up -d cli
+        echo -e "${GREEN}CLI service started${NC}"
+    fi
+}
+
+# Main execution
+main() {
+    check_docker
+    
+    # If no arguments provided, show usage
+    if [ $# -eq 0 ]; then
+        print_usage
+        exit 0
+    fi
+    
+    # Handle special commands
+    case "$1" in
+        "help"|"--help"|"-h")
+            print_usage
+            exit 0
+            ;;
+        "shell")
+            ensure_cli_service
+            echo -e "${BLUE}Opening interactive shell in CLI container...${NC}"
+            echo -e "${YELLOW}You can now run: php control [command]${NC}"
+            docker compose exec cli bash
+            exit 0
+            ;;
+        *)
+            # Pass all arguments to php control
+            ensure_cli_service
+            echo -e "${BLUE}Running: php control $@${NC}"
+            docker compose exec cli php control "$@"
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@" 

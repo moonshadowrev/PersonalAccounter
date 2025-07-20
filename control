@@ -111,9 +111,12 @@ class Control
             case 'reset':
                 $this->resetMigrations();
                 break;
+            case 'docker':
+                $this->runDockerMigrations();
+                break;
             default:
                 $this->error("Unknown migrate command: {$subCommand}");
-                $this->info("Available migrate commands: run, fresh, rollback, status, reset");
+                $this->info("Available migrate commands: run, fresh, rollback, status, reset, docker");
         }
     }
     
@@ -395,6 +398,72 @@ class Control
             $this->createAdminUser();
         } else {
             $this->info("Nothing to migrate.");
+        }
+    }
+    
+    private function runDockerMigrations()
+    {
+        $this->info("Running database migrations for Docker environment...");
+        
+        $migrationFiles = $this->getMigrationFiles();
+        $executedMigrations = $this->getExecutedMigrations();
+        
+        if (empty($migrationFiles)) {
+            $this->warning("No migration files found.");
+            return;
+        }
+        
+        $batch = $this->getNextBatchNumber();
+        $executed = 0;
+        
+        foreach ($migrationFiles as $file) {
+            $migrationName = basename($file, '.php');
+            
+            if (in_array($migrationName, $executedMigrations)) {
+                continue; // Skip already executed migrations
+            }
+            
+            try {
+                require_once $file;
+                
+                // Get class name from file name
+                $className = $this->getClassNameFromFile($migrationName);
+                
+                if (!class_exists($className)) {
+                    $this->error("Migration class {$className} not found in {$file}");
+                    continue;
+                }
+                
+                $migration = new $className($this->database);
+                
+                $this->info("Migrating: {$migrationName}");
+                $migration->up();
+                
+                // Record migration
+                $this->database->insert('migrations', [
+                    'migration' => $migrationName,
+                    'batch' => $batch
+                ]);
+                
+                $this->success("Migrated: {$migrationName}");
+                $executed++;
+                
+            } catch (Exception $e) {
+                $this->error("Migration failed for {$migrationName}: " . $e->getMessage());
+                break;
+            }
+        }
+        
+        if ($executed > 0) {
+            $this->success("Executed {$executed} migrations successfully!");
+            
+            // Create admin user from environment variables for Docker
+            $this->createDockerAdminUser();
+        } else {
+            $this->info("Nothing to migrate.");
+            
+            // Still try to create admin user if it doesn't exist
+            $this->createDockerAdminUser();
         }
     }
     
@@ -689,6 +758,71 @@ class {$className} extends Migration
             
             $this->success("Admin user created successfully!");
             $this->info("Email: {$email}");
+            
+        } catch (Exception $e) {
+            $this->error("Failed to create admin user: " . $e->getMessage());
+        }
+    }
+    
+    private function createDockerAdminUser()
+    {
+        try {
+            // Check if any admin user already exists
+            $existingAdmin = $this->database->get('users', '*', ['role' => 'superadmin']);
+            
+            if ($existingAdmin) {
+                $this->info("Admin user already exists: " . $existingAdmin['email']);
+                return;
+            }
+            
+            // Get admin credentials from environment variables
+            $adminEmail = $_ENV['ADMIN_EMAIL'] ?? null;
+            $adminPassword = $_ENV['ADMIN_PASSWORD'] ?? null;
+            $adminName = $_ENV['ADMIN_NAME'] ?? 'Admin';
+            
+            if (!$adminEmail || !$adminPassword) {
+                $this->error("ADMIN_EMAIL and ADMIN_PASSWORD environment variables are required for Docker setup.");
+                $this->info("Please set these in your .env file:");
+                $this->info("ADMIN_EMAIL=admin@example.com");
+                $this->info("ADMIN_PASSWORD=your_secure_password");
+                return;
+            }
+            
+            // Validate email format
+            if (!filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+                $this->error("Invalid email format in ADMIN_EMAIL environment variable: {$adminEmail}");
+                return;
+            }
+            
+            // Check if user with this email already exists
+            $existingUser = $this->database->get('users', '*', ['email' => $adminEmail]);
+            if ($existingUser) {
+                $this->info("User with email '{$adminEmail}' already exists.");
+                return;
+            }
+            
+            // Validate password length
+            if (strlen($adminPassword) < 8) {
+                $this->error("ADMIN_PASSWORD must be at least 8 characters long.");
+                return;
+            }
+            
+            // Create admin user from environment variables
+            $this->info("Creating admin user from environment variables...");
+            
+            $hashedPassword = password_hash($adminPassword, PASSWORD_DEFAULT);
+            $this->database->insert('users', [
+                'name' => $adminName,
+                'email' => $adminEmail,
+                'password' => $hashedPassword,
+                'role' => 'superadmin',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+            
+            $this->success("Admin user created successfully!");
+            $this->info("Email: {$adminEmail}");
+            $this->info("Role: superadmin");
             
         } catch (Exception $e) {
             $this->error("Failed to create admin user: " . $e->getMessage());
@@ -996,6 +1130,7 @@ class {$className} extends Migration
         $this->info("  migrate rollback [steps] Rollback migrations (default: 1 batch)");
         $this->info("  migrate status           Show migration status");
         $this->info("  migrate reset            Reset database (fresh + seed)");
+        $this->info("  migrate docker           Run migrations for Docker environment");
         $this->info("");
         $this->info("Make commands:");
         $this->info("  make migration <name>    Create a new migration file");
