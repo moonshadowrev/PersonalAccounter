@@ -1,0 +1,13 @@
+name: Docker Image CI
+
+on:
+  push:
+    tags: [ 'v*' ]  # Trigger on tags starting with 'v'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag personal-accounter:${{ github.ref_name }}
