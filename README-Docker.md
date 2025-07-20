@@ -9,6 +9,7 @@ This guide provides comprehensive instructions for deploying PersonalAccounter u
 - **🔧 Network Diagnostics**: `network-check.sh` tool for troubleshooting network issues
 - **📊 Adminer Integration**: Lightweight database management interface
 - **⚡ Auto-Permission Fixes**: Automatic log directory permission resolution
+- **🔧 Auto Docker image build for each version release
 
 ## 🚀 Quick Start
 
@@ -24,6 +25,12 @@ Or using wget:
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
+```
+
+you can also check out docker built image as well
+
+```bash
+docker pull moonshadowrev/personalaccounter
 ```
 
 This script will:
