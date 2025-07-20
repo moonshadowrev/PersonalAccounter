@@ -22,11 +22,13 @@ services:
     ports:
       - "${DB_PORT_EXPOSE:-3306}:3306"
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      # Simple but reliable check: wait for MariaDB to accept connections
+      # Database and user creation happens automatically during container initialization
+      test: ["CMD-SHELL", "mariadb -u root -p$$MYSQL_ROOT_PASSWORD --skip-ssl -e 'SELECT 1;' >/dev/null 2>&1"]
       start_period: 30s
       interval: 10s
       timeout: 10s
-      retries: 5
+      retries: 10
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --bind-address=0.0.0.0
 
   # PHP-FPM Application
@@ -82,11 +84,12 @@ services:
     networks:
       - accounting_network
     healthcheck:
-      test: ["CMD-SHELL", "pidof php-fpm > /dev/null || exit 1"]
+      # Verify both PHP-FPM and database connectivity with application user
+      test: ["CMD-SHELL", "pidof php-fpm > /dev/null && mariadb -h$$DB_HOST -u$$DB_USER -p$$DB_PASS $$DB_NAME --skip-ssl -e 'SELECT 1;' >/dev/null 2>&1"]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 3
-      start_period: 60s
+      start_period: 90s
 
   # Caddy Web Server
   caddy:
@@ -98,12 +101,10 @@ services:
         condition: service_healthy
     ports:
       - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
     env_file:
       - .env
     volumes:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./docker/caddy/ssl:/etc/caddy/ssl:ro
       - ./public:/var/www/html/public:ro
       - caddy_data:/data
       - caddy_config:/config

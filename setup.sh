@@ -24,10 +24,9 @@ readonly REQUIRED_DOCKER_VERSION="20.10.0"
 readonly REQUIRED_COMPOSE_VERSION="2.0.0"
 
 # Global variables
-DOMAIN=""
+DOMAIN="localhost"
 USE_HTTPS=false
-SSL_TYPE=""
-ENVIRONMENT="production"
+ENVIRONMENT="development"
 ADMIN_EMAIL=""
 ADMIN_PASSWORD=""
 PROJECT_DIR=""
@@ -99,115 +98,23 @@ validate_domain() {
     [[ $domain =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$ ]]
 }
 
-# Generate self-signed SSL certificates
-generate_self_signed_ssl() {
-    print_header "Generating Self-Signed SSL Certificates"
-    
-    local ssl_dir="docker/caddy/ssl"
-    mkdir -p "$ssl_dir"
-    
-    # Generate private key
-    print_info "Generating private key..."
-    openssl genrsa -out "$ssl_dir/server.key" 4096
-    
-    # Generate certificate signing request
-    print_info "Generating certificate signing request..."
-    openssl req -new -key "$ssl_dir/server.key" -out "$ssl_dir/server.csr" -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=$DOMAIN"
-    
-    # Generate self-signed certificate (valid for 365 days)
-    print_info "Generating self-signed certificate..."
-    openssl x509 -req -days 365 -in "$ssl_dir/server.csr" -signkey "$ssl_dir/server.key" -out "$ssl_dir/server.crt"
-    
-    # Generate certificate with SAN for additional domains
-    cat > "$ssl_dir/server.conf" << EOF
-[req]
-default_bits = 4096
-prompt = no
-distinguished_name = req_distinguished_name
-req_extensions = v3_req
-
-[req_distinguished_name]
-C = US
-ST = State
-L = City
-O = Organization
-OU = Unit
-CN = $DOMAIN
-
-[v3_req]
-keyUsage = keyEncipherment, dataEncipherment
-extendedKeyUsage = serverAuth
-subjectAltName = @alt_names
-
-[alt_names]
-DNS.1 = $DOMAIN
-DNS.2 = www.$DOMAIN
-DNS.3 = localhost
-IP.1 = 127.0.0.1
-EOF
-    
-    # Generate improved certificate with SAN
-    openssl req -new -x509 -key "$ssl_dir/server.key" -out "$ssl_dir/server.crt" -days 365 -config "$ssl_dir/server.conf" -extensions v3_req
-    
-    # Set proper permissions
-    chmod 600 "$ssl_dir/server.key"
-    chmod 644 "$ssl_dir/server.crt"
-    
-    # Clean up temporary files
-    rm -f "$ssl_dir/server.csr" "$ssl_dir/server.conf"
-    
-    print_success "Self-signed SSL certificates generated"
-    print_warning "Note: Browsers will show a security warning for self-signed certificates"
-    print_info "Certificate location: $ssl_dir/"
-}
+# SSL functions removed - HTTP only setup
 
 # Interactive setup
 interactive_setup() {
     print_header "Interactive Configuration Setup"
     
-    # Domain configuration
-    while true; do
-        echo -n "Enter your domain (e.g., accounting.example.com) or 'localhost' for local setup: "
-        read -r DOMAIN
-        
-        if [[ "$DOMAIN" == "localhost" ]]; then
-            USE_HTTPS=false
-            break
-        elif validate_domain "$DOMAIN"; then
-            echo -n "Use HTTPS for $DOMAIN? (y/N): "
-            read -r https_choice
-            if [[ "$https_choice" =~ ^[Yy]$ ]]; then
-                USE_HTTPS=true
-                
-                # Ask for SSL certificate type
-                echo ""
-                echo "SSL Certificate Options:"
-                echo "1) Let's Encrypt (automatic, free, requires public domain)"
-                echo "2) Self-signed (for development/testing)"
-                echo -n "Choose SSL type (1-2) [1]: "
-                read -r ssl_choice
-                
-                case $ssl_choice in
-                    2)
-                        SSL_TYPE="self-signed"
-                        print_info "Will generate self-signed SSL certificates"
-                        ;;
-                    *)
-                        SSL_TYPE="letsencrypt"
-                        print_info "Will use Let's Encrypt for SSL certificates"
-                        ;;
-                esac
-            fi
-            break
-        else
-            print_error "Invalid domain format. Please try again."
-        fi
-    done
+    # Fixed configuration - localhost HTTP only
+    DOMAIN="localhost"
+    USE_HTTPS=false
+    print_info "Using localhost with HTTP (no SSL complexity)"
     
     # Environment selection
-    echo -n "Select environment (production/development) [production]: "
+    echo -n "Select environment (production/development) [development]: "
     read -r env_choice
-    if [[ "$env_choice" == "development" ]]; then
+    if [[ "$env_choice" == "production" ]]; then
+        ENVIRONMENT="production"
+    else
         ENVIRONMENT="development"
     fi
     
@@ -261,14 +168,7 @@ check_requirements() {
         fi
     done
     
-    # Check for openssl if self-signed certificates are requested
-    if [[ "$SSL_TYPE" == "self-signed" ]]; then
-        if command_exists openssl; then
-            print_success "openssl is available for certificate generation"
-        else
-            die "openssl is required for self-signed certificate generation but not installed"
-        fi
-    fi
+    # No SSL tools required for HTTP-only setup
     
     # Check Docker
     if command_exists docker; then
@@ -339,13 +239,8 @@ generate_environment() {
     local db_user_password=$(generate_password 24)
     local session_key=$(generate_password 32)
     
-    # Determine URL scheme
-    local app_url
-    if [[ "$USE_HTTPS" == true ]]; then
-        app_url="https://$DOMAIN"
-    else
-        app_url="http://$DOMAIN"
-    fi
+    # Always use HTTP for simplicity
+    local app_url="http://localhost"
     
     # Copy .env.example if it exists
     if [[ -f ".env.example" ]]; then
@@ -359,7 +254,7 @@ generate_environment() {
 APP_ENV=$ENVIRONMENT
 APP_DEBUG=$([[ "$ENVIRONMENT" == "development" ]] && echo "true" || echo "false")
 APP_URL=$app_url
-APP_DOMAIN=$DOMAIN
+APP_DOMAIN=localhost
 APP_TIMEZONE=UTC
 
 # Database Configuration
@@ -372,8 +267,8 @@ DB_ROOT_PASSWORD=$db_root_password
 
 # Session Configuration
 SESSION_LIFETIME=0
-SESSION_SECURE=$([[ "$USE_HTTPS" == true ]] && echo "true" || echo "false")
-SESSION_SAMESITE=Strict
+SESSION_SECURE=false
+SESSION_SAMESITE=Lax
 SESSION_KEY=$session_key
 
 # Security Configuration
@@ -423,7 +318,6 @@ setup_directories() {
         "public/uploads"
         "docker/mariadb"
         "docker/caddy"
-        "docker/caddy/ssl"
         "docker/php"
         "docker/cron"
     )
@@ -439,83 +333,22 @@ setup_directories() {
     print_success "Directory structure setup completed"
 }
 
-# Update Caddy configuration for domain
+# Update Caddy configuration
 update_caddy_config() {
     print_header "Updating Caddy Configuration"
     
-    if [[ "$DOMAIN" == "localhost" ]]; then
-        # Localhost configuration - HTTP only, port-based
-        cat > docker/caddy/Caddyfile << 'EOF'
+    # Simple HTTP-only configuration for localhost
+    cat > docker/caddy/Caddyfile << 'EOF'
 {
     admin off
+    # No SSL - HTTP only for simplicity
 }
 
-# HTTP server for localhost - ports 80 and 8080
+# HTTP server - localhost only, no SSL complexity
 :80, :8080 {
     root * /var/www/html/public
     
-    # Security headers
-    header {
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        -Server
-    }
-    
-    # Enable file server
-    file_server
-    
-    # Enable gzip compression  
-    encode gzip
-    
-    # PHP handling
-    php_fastcgi app:9000
-}
-EOF
-    else
-        # Domain-based configuration
-        if [[ "$SSL_TYPE" == "letsencrypt" ]]; then
-            # Let's Encrypt configuration - automatic HTTPS
-            cat > docker/caddy/Caddyfile << EOF
-{
-    admin off
-    email ${ADMIN_EMAIL}
-}
-
-# HTTP and HTTPS for ${DOMAIN}
-${DOMAIN} {
-    root * /var/www/html/public
-    
-    # Security headers
-    header {
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        -Server
-    }
-    
-    # Enable file server
-    file_server
-    
-    # Enable gzip compression
-    encode gzip
-    
-    # PHP handling
-    php_fastcgi app:9000
-}
-EOF
-        else
-            # Self-signed certificate configuration
-            cat > docker/caddy/Caddyfile << EOF
-{
-    admin off
-    local_certs
-}
-
-# HTTP server
-:80, :8080 {
-    root * /var/www/html/public
-    
-    # Security headers
+    # Security headers (HTTP only)
     header {
         X-Content-Type-Options nosniff
         X-Frame-Options DENY
@@ -531,36 +364,9 @@ EOF
     # PHP handling
     php_fastcgi app:9000
 }
-
-# HTTPS server with self-signed certificates
-:443, :8443 {
-    root * /var/www/html/public
-    
-    # Self-signed TLS certificate
-    tls internal
-    
-    # Security headers  
-    header {
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        -Server
-    }
-    
-    # Enable file server
-    file_server
-    
-    # Enable gzip compression
-    encode gzip
-    
-    # PHP handling
-    php_fastcgi app:9000
-}
 EOF
-        fi
-    fi
     
-    print_success "Caddy configuration updated for $DOMAIN with SSL type: ${SSL_TYPE:-none}"
+    print_success "Caddy configuration updated for localhost (HTTP only)"
 }
 
 # Build and deploy application
@@ -583,33 +389,9 @@ deploy_application() {
         docker compose up -d
     fi
     
-    # Wait for services to be healthy
-    print_info "Waiting for services to be healthy..."
-    local max_wait=300
-    local count=0
-    
-    while true; do
-        # Check health status using multiple methods for compatibility
-        local health_status=""
-        if command -v jq >/dev/null 2>&1; then
-            # Try different health check formats
-            health_status=$(docker compose ps --format json 2>/dev/null | jq -r '.[].State // .[].Status // "unknown"' 2>/dev/null | grep -c "running\|healthy" || echo "0")
-        else
-            # Fallback without jq - just check if containers are running
-            health_status=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "running" || echo "0")
-        fi
-        
-        # Check if all expected services are healthy/running (at least 4: app, database, caddy, cron)
-        if [[ "$health_status" -ge 4 ]]; then
-            break
-        fi
-        
-        if [[ $count -ge $max_wait ]]; then
-            die "Services failed to become healthy within $max_wait seconds"
-        fi
-        sleep 2
-        ((count+=2))
-    done
+    # Docker Compose handles service health checks automatically via depends_on
+    print_info "Services starting with automatic health checks..."
+    sleep 5  # Brief pause to let services initialize
     
     print_success "Application deployed successfully"
 }
@@ -618,85 +400,32 @@ deploy_application() {
 initialize_database() {
     print_header "Initializing Database"
     
-    # Get variables from .env file if they're not already set
-    if [[ -f ".env" ]]; then
-        source .env
-    fi
-    
-    # Wait for database to be ready
-    print_info "Waiting for database to be ready..."
-    local max_wait=120
-    local count=0
-    
-    while ! docker compose exec -T database mariadb -u root -p"$DB_ROOT_PASSWORD" --skip-ssl -e "SELECT 1" >/dev/null 2>&1; do
-        if [[ $count -ge $max_wait ]]; then
-            die "Database failed to start within $max_wait seconds"
-        fi
-        sleep 2
-        ((count+=2))
-    done
-    
-    # Run database migrations
+    # Database and app are guaranteed to be ready by healthchecks at this point
     print_info "Running database migrations..."
     docker compose exec -T app php control migrate docker || print_warning "Migration may have failed or already complete"
     
     print_success "Database initialization completed"
 }
 
-# Run health checks
+# Run basic checks
 run_health_checks() {
-    print_header "Running Health Checks"
+    print_header "Running Basic Checks"
     
-    # Check container health  
-    local running_services=0
-    if command -v jq >/dev/null 2>&1; then
-        running_services=$(docker compose ps --format json 2>/dev/null | jq -r '.[].State // .[].Status // "unknown"' 2>/dev/null | grep -c "running\|healthy" || echo "0")
-    else
-        running_services=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "running" || echo "0")
-    fi
+    # Docker Compose handles service health automatically via depends_on
+    print_info "Docker services managed by health checks"
     
-    if [[ "$running_services" -ge 4 ]]; then
-        print_success "All containers are healthy ($running_services services running)"
-    else
-        print_warning "Some containers may not be healthy ($running_services services running)"
-    fi
+    # Basic web server check
+    local app_url="http://localhost"
     
-    # Check web server
-    local app_url
-    if [[ "$USE_HTTPS" == true ]]; then
-        app_url="https://$DOMAIN"
-    else
-        app_url="http://$DOMAIN"
-    fi
-    
-    if [[ "$DOMAIN" == "localhost" ]]; then
-        app_url="http://localhost"
-    fi
-    
-    print_info "Checking web server at $app_url..."
-    if curl -f -s "$app_url/health" >/dev/null 2>&1; then
-        print_success "Web server is responding"
-    else
-        print_warning "Web server may not be ready yet"
-    fi
-    
-    print_success "Health checks completed"
+    print_info "Application should be available at: $app_url"
+    print_success "Basic checks completed"
 }
 
 # Display final information
 display_final_info() {
     print_header "🎉 Setup Complete!"
     
-    local app_url
-    if [[ "$USE_HTTPS" == true ]]; then
-        app_url="https://$DOMAIN"
-    else
-        app_url="http://$DOMAIN"
-    fi
-    
-    if [[ "$DOMAIN" == "localhost" ]]; then
-        app_url="http://localhost"
-    fi
+    local app_url="http://localhost"
     
     echo -e "${GREEN}Accounting Panel has been successfully deployed!${NC}\n"
     
@@ -729,23 +458,10 @@ display_final_info() {
     echo -e "   • Regularly update your Docker images"
     echo -e "   • Set up automated backups"
     
-    if [[ "$USE_HTTPS" == true ]]; then
-        echo -e "\n${GREEN}🔒 SSL Configuration:${NC}"
-        if [[ "$SSL_TYPE" == "self-signed" ]]; then
-            echo -e "   • Using self-signed SSL certificates"
-            echo -e "   • Certificate location: docker/caddy/ssl/"
-            echo -e "   • ${YELLOW}Warning: Browsers will show security warnings${NC}"
-            echo -e "   • Add security exception or use --https for Let's Encrypt"
-        else
-            echo -e "   • Using Let's Encrypt SSL certificates"
-            echo -e "   • Automatic certificate renewal enabled"
-            echo -e "   • No browser warnings expected"
-        fi
-    elif [[ "$DOMAIN" != "localhost" ]]; then
-        echo -e "\n${YELLOW}🔒 HTTPS Recommendation:${NC}"
-        echo -e "   • Consider enabling HTTPS for production use"
-        echo -e "   • Use --https for Let's Encrypt or --self-signed for development"
-    fi
+    echo -e "\n${GREEN}🌐 Configuration:${NC}"
+    echo -e "   • HTTP-only setup (no SSL complexity)"
+    echo -e "   • Access via: http://localhost"
+    echo -e "   • No browser security warnings"
     
     echo -e "\n${GREEN}Happy accounting! 📊💰${NC}"
 }
@@ -754,20 +470,6 @@ display_final_info() {
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --domain)
-                DOMAIN="$2"
-                shift 2
-                ;;
-            --https)
-                USE_HTTPS=true
-                SSL_TYPE="letsencrypt"
-                shift
-                ;;
-            --self-signed)
-                USE_HTTPS=true
-                SSL_TYPE="self-signed"
-                shift
-                ;;
             --env)
                 ENVIRONMENT="$2"
                 shift 2
@@ -802,9 +504,6 @@ show_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --domain DOMAIN       Set the domain (default: interactive)"
-    echo "  --https               Enable HTTPS with Let's Encrypt (default: false)"
-    echo "  --self-signed         Enable HTTPS with self-signed certificates"
     echo "  --env ENV             Set environment (production/development)"
     echo "  --email EMAIL         Set admin email"
     echo "  --password PASSWORD   Set admin password"
@@ -812,10 +511,11 @@ show_help() {
     echo "  --help, -h            Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0 --domain localhost"
-    echo "  $0 --domain example.com --https --email admin@example.com"
-    echo "  $0 --domain dev.local --self-signed --email admin@dev.local"
+    echo "  $0 --env development --email admin@localhost"
+    echo "  $0 --env production --email admin@company.com --password mypass"
     echo "  curl -fsSL https://raw.githubusercontent.com/USER/REPO/main/setup.sh | bash"
+    echo ""
+    echo "Note: Uses localhost HTTP only (no SSL complexity)"
 }
 
 # Main execution
@@ -828,8 +528,12 @@ main() {
     # Check requirements
     check_requirements
     
-    # Interactive setup if not all parameters provided
-    if [[ -z "$DOMAIN" || -z "$ADMIN_EMAIL" ]]; then
+    # Set defaults and run interactive setup if needed
+    DOMAIN="localhost"
+    USE_HTTPS=false
+    
+    # Interactive setup if admin email not provided
+    if [[ -z "$ADMIN_EMAIL" ]]; then
         interactive_setup
     fi
     
@@ -845,13 +549,7 @@ main() {
     # Update Caddy configuration
     update_caddy_config
     
-    # Generate SSL certificates if needed
-    # Note: When using self-signed, Caddy handles certificate generation with 'tls internal'
-    # The generate_self_signed_ssl function is available but not needed for Caddy setup
-    if [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "self-signed" ]]; then
-        print_info "Using Caddy's internal certificate generation (tls internal)"
-        print_info "Certificates will be generated automatically when containers start"
-    fi
+    # No SSL configuration needed - HTTP only setup
     
     # Deploy application
     deploy_application

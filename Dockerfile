@@ -93,16 +93,15 @@ RUN composer dump-autoload --optimize --no-dev
 RUN echo '#!/bin/bash' > /usr/local/bin/start-app.sh \
     && echo 'set -e' >> /usr/local/bin/start-app.sh \
     && echo '' >> /usr/local/bin/start-app.sh \
-    && echo '# Wait for database' >> /usr/local/bin/start-app.sh \
-    && echo 'echo "Waiting for database connection..."' >> /usr/local/bin/start-app.sh \
-    && echo 'until mariadb -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" --skip-ssl -e "SELECT 1;" >/dev/null 2>&1; do' >> /usr/local/bin/start-app.sh \
-    && echo '  echo "Database not ready. Trying: mariadb -h$DB_HOST -u$DB_USER -p[HIDDEN] $DB_NAME --skip-ssl"' >> /usr/local/bin/start-app.sh \
-    && echo '  mariadb -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" --skip-ssl -e "SELECT 1;" 2>&1 | head -3' >> /usr/local/bin/start-app.sh \
-    && echo '  echo "^ If you see access denied error, run: docker compose down -v && docker compose up -d"' >> /usr/local/bin/start-app.sh \
-    && echo '  echo "Waiting 2 seconds..."' >> /usr/local/bin/start-app.sh \
-    && echo '  sleep 2' >> /usr/local/bin/start-app.sh \
-    && echo 'done' >> /usr/local/bin/start-app.sh \
-    && echo 'echo "Database connected successfully!"' >> /usr/local/bin/start-app.sh \
+    && echo '# Setup database user (MariaDB healthcheck ensures DB is fully ready)' >> /usr/local/bin/start-app.sh \
+    && echo 'echo "Setting up application database user..."' >> /usr/local/bin/start-app.sh \
+    && echo '# Create application user if needed (database already exists from healthcheck)' >> /usr/local/bin/start-app.sh \
+    && echo 'mariadb -h"$DB_HOST" -uroot -p"$DB_ROOT_PASSWORD" --skip-ssl << EOF' >> /usr/local/bin/start-app.sh \
+    && echo 'CREATE USER IF NOT EXISTS '\''$DB_USER'\''@'\''%'\'' IDENTIFIED BY '\''$DB_PASS'\'';' >> /usr/local/bin/start-app.sh \
+    && echo 'GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '\''$DB_USER'\''@'\''%'\'';' >> /usr/local/bin/start-app.sh \
+    && echo 'FLUSH PRIVILEGES;' >> /usr/local/bin/start-app.sh \
+    && echo 'EOF' >> /usr/local/bin/start-app.sh \
+    && echo 'echo "✓ Application user configured"' >> /usr/local/bin/start-app.sh \
     && echo '' >> /usr/local/bin/start-app.sh \
     && echo '# Ensure proper permissions on critical directories' >> /usr/local/bin/start-app.sh \
     && echo 'echo "Fixing permissions..."' >> /usr/local/bin/start-app.sh \
