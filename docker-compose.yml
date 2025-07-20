@@ -124,27 +124,20 @@ services:
       retries: 3
       start_period: 10s
 
-  # phpMyAdmin (only in development)
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:5.2
-    container_name: accounting_panel_phpmyadmin
+  # Adminer (Database Management - lightweight alternative to phpMyAdmin)
+  adminer:
+    image: adminer:4.8.1-standalone
+    container_name: accounting_panel_adminer
     restart: unless-stopped
     depends_on:
       database:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
-      PMA_HOST: database
-      PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      UPLOAD_LIMIT: 64M
-      MEMORY_LIMIT: 256M
-      PMA_ARBITRARY: 1
+      ADMINER_DEFAULT_SERVER: database
+      ADMINER_DESIGN: pepa-linha
+      ADMINER_PLUGINS: tables-filter tinymce
     ports:
-      - "${PHPMYADMIN_PORT:-8080}:80"
+      - "${PHPMYADMIN_PORT:-8080}:8080"
     networks:
       - accounting_network
     profiles:
