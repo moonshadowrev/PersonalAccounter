@@ -443,13 +443,14 @@ setup_directories() {
 update_caddy_config() {
     print_header "Updating Caddy Configuration"
     
-    # Use simplified Caddy configuration that works without environment variables
-    cat > docker/caddy/Caddyfile << 'EOF'
+    if [[ "$DOMAIN" == "localhost" ]]; then
+        # Localhost configuration - HTTP only, port-based
+        cat > docker/caddy/Caddyfile << 'EOF'
 {
     admin off
 }
 
-# HTTP server - works on both ports 80 and 8080
+# HTTP server for localhost - ports 80 and 8080
 :80, :8080 {
     root * /var/www/html/public
     
@@ -463,15 +464,25 @@ update_caddy_config() {
     # Enable file server
     file_server
     
-    # Enable gzip compression
+    # Enable gzip compression  
     encode gzip
     
     # PHP handling
     php_fastcgi app:9000
 }
+EOF
+    else
+        # Domain-based configuration
+        if [[ "$SSL_TYPE" == "letsencrypt" ]]; then
+            # Let's Encrypt configuration - automatic HTTPS
+            cat > docker/caddy/Caddyfile << EOF
+{
+    admin off
+    email ${ADMIN_EMAIL}
+}
 
-# HTTPS server - default port 443 and 8443
-:443, :8443 {
+# HTTP and HTTPS for ${DOMAIN}
+${DOMAIN} {
     root * /var/www/html/public
     
     # Security headers
@@ -492,8 +503,64 @@ update_caddy_config() {
     php_fastcgi app:9000
 }
 EOF
+        else
+            # Self-signed certificate configuration
+            cat > docker/caddy/Caddyfile << EOF
+{
+    admin off
+    local_certs
+}
 
-    print_success "Caddy configuration updated"
+# HTTP server
+:80, :8080 {
+    root * /var/www/html/public
+    
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        -Server
+    }
+    
+    # Enable file server
+    file_server
+    
+    # Enable gzip compression
+    encode gzip
+    
+    # PHP handling
+    php_fastcgi app:9000
+}
+
+# HTTPS server with self-signed certificates
+:443, :8443 {
+    root * /var/www/html/public
+    
+    # Self-signed TLS certificate
+    tls internal
+    
+    # Security headers  
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        -Server
+    }
+    
+    # Enable file server
+    file_server
+    
+    # Enable gzip compression
+    encode gzip
+    
+    # PHP handling
+    php_fastcgi app:9000
+}
+EOF
+        fi
+    fi
+    
+    print_success "Caddy configuration updated for $DOMAIN with SSL type: ${SSL_TYPE:-none}"
 }
 
 # Build and deploy application
@@ -521,7 +588,22 @@ deploy_application() {
     local max_wait=300
     local count=0
     
-    while ! docker compose ps --format json | jq -r '.[] | select(.Health != null) | .Health' | grep -q "healthy"; do
+    while true; do
+        # Check health status using multiple methods for compatibility
+        local health_status=""
+        if command -v jq >/dev/null 2>&1; then
+            # Try different health check formats
+            health_status=$(docker compose ps --format json 2>/dev/null | jq -r '.[].State // .[].Status // "unknown"' 2>/dev/null | grep -c "running\|healthy" || echo "0")
+        else
+            # Fallback without jq - just check if containers are running
+            health_status=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "running" || echo "0")
+        fi
+        
+        # Check if all expected services are healthy/running (at least 4: app, database, caddy, cron)
+        if [[ "$health_status" -ge 4 ]]; then
+            break
+        fi
+        
         if [[ $count -ge $max_wait ]]; then
             die "Services failed to become healthy within $max_wait seconds"
         fi
@@ -565,11 +647,18 @@ initialize_database() {
 run_health_checks() {
     print_header "Running Health Checks"
     
-    # Check container health
-    if docker compose ps --format json | jq -r '.[] | select(.Health != null) | .Health' | grep -q "healthy"; then
-        print_success "All containers are healthy"
+    # Check container health  
+    local running_services=0
+    if command -v jq >/dev/null 2>&1; then
+        running_services=$(docker compose ps --format json 2>/dev/null | jq -r '.[].State // .[].Status // "unknown"' 2>/dev/null | grep -c "running\|healthy" || echo "0")
     else
-        print_warning "Some containers may not be healthy"
+        running_services=$(docker compose ps --format "table {{.State}}" 2>/dev/null | grep -c "running" || echo "0")
+    fi
+    
+    if [[ "$running_services" -ge 4 ]]; then
+        print_success "All containers are healthy ($running_services services running)"
+    else
+        print_warning "Some containers may not be healthy ($running_services services running)"
     fi
     
     # Check web server

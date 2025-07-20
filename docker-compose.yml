@@ -200,9 +200,12 @@ services:
     entrypoint: ["tail", "-f", "/dev/null"]  # Keep container running for interactive use
 
 networks:
+  # Auto-managed bridge network for maximum compatibility
+  # Docker automatically handles service discovery, subnet assignment, and conflict avoidance
+  # Containers can communicate using service names (database, app, caddy, etc.)
   accounting_network:
     driver: bridge
-    name: accounting_panel_network
+    # No custom name or subnet - lets Docker handle everything automatically
 
 volumes:
   db_data:

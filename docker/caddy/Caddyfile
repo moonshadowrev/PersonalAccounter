@@ -1,5 +1,10 @@
+# Caddy Configuration for PersonalAccounter
+# This is the default configuration for development/manual setup
+# The setup.sh script will replace this with domain-specific configuration
+
 {
     admin off
+    local_certs
 }
 
 # HTTP server - works on both ports 80 and 8080
@@ -23,9 +28,13 @@
     php_fastcgi app:9000
 }
 
-# HTTPS server - default port 443 and 8443
+# HTTPS server - default port 443 and 8443 with self-signed certificate
 :443, :8443 {
     root * /var/www/html/public
+    
+    # Self-signed TLS certificate for development/testing
+    # Note: setup.sh will configure proper Let's Encrypt or domain-specific SSL
+    tls internal
     
     # Security headers
     header {

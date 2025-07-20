@@ -96,7 +96,10 @@ RUN echo '#!/bin/bash' > /usr/local/bin/start-app.sh \
     && echo '# Wait for database' >> /usr/local/bin/start-app.sh \
     && echo 'echo "Waiting for database connection..."' >> /usr/local/bin/start-app.sh \
     && echo 'until mariadb -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" --skip-ssl -e "SELECT 1;" >/dev/null 2>&1; do' >> /usr/local/bin/start-app.sh \
-    && echo '  echo "Database not ready, waiting 2 seconds..."' >> /usr/local/bin/start-app.sh \
+    && echo '  echo "Database not ready. Trying: mariadb -h$DB_HOST -u$DB_USER -p[HIDDEN] $DB_NAME --skip-ssl"' >> /usr/local/bin/start-app.sh \
+    && echo '  mariadb -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" --skip-ssl -e "SELECT 1;" 2>&1 | head -3' >> /usr/local/bin/start-app.sh \
+    && echo '  echo "^ If you see access denied error, run: docker compose down -v && docker compose up -d"' >> /usr/local/bin/start-app.sh \
+    && echo '  echo "Waiting 2 seconds..."' >> /usr/local/bin/start-app.sh \
     && echo '  sleep 2' >> /usr/local/bin/start-app.sh \
     && echo 'done' >> /usr/local/bin/start-app.sh \
     && echo 'echo "Database connected successfully!"' >> /usr/local/bin/start-app.sh \

@@ -57,16 +57,19 @@ check_network_conflicts() {
 suggest_alternatives() {
     echo -e "${BLUE}🛠️  Network Configuration Options:${NC}"
     echo ""
-    echo -e "${GREEN}1. Current Configuration (Customizable):${NC}"
+    echo -e "${GREEN}1. Auto-Managed (Recommended):${NC}"
+    echo "   • Let Docker choose subnet automatically"
+    echo "   • Automatic service discovery (database, app, etc.)"
+    echo "   • Best for: Most deployments, avoiding conflicts"
+    echo "   • Current status: $(if grep -q 'name:' docker-compose.yml 2>/dev/null; then echo 'Not active'; else echo 'Active'; fi)"
+    echo ""
+    echo -e "${GREEN}2. Custom Subnet (Advanced):${NC}"
     echo "   • Subnet: ${DOCKER_SUBNET:-172.28.0.0/24}"
     echo "   • Gateway: ${DOCKER_GATEWAY:-172.28.0.1}"
     echo "   • Good for: Specific network requirements"
+    echo "   • Requires manual configuration"
     echo ""
-    echo -e "${GREEN}2. Auto-Managed (Maximum Compatibility):${NC}"
-    echo "   • Let Docker choose subnet automatically"
-    echo "   • Best for: Avoiding conflicts entirely"
-    echo ""
-    echo -e "${GREEN}3. Alternative Subnets:${NC}"
+    echo -e "${GREEN}3. Alternative Subnets (if conflicts persist):${NC}"
     echo "   • 172.29.0.0/24 (less common)"
     echo "   • 172.30.0.0/24 (even less common)"
     echo "   • 10.99.0.0/24 (private class A)"
@@ -92,18 +95,21 @@ fix_conflicts() {
 }
 
 switch_to_auto_managed() {
-    echo -e "${BLUE}🔄 Switching to auto-managed network...${NC}"
+    echo -e "${BLUE}🔄 Ensuring auto-managed network configuration...${NC}"
     
     # Create backup
     cp docker-compose.yml docker-compose.yml.backup
     
-    # Comment out the advanced config and uncomment the simple one
-    sed -i.tmp '/# Advanced network configuration/,/com.docker.network.driver.mtu: "1500"/s/^/# /' docker-compose.yml
-    sed -i.tmp '/# Alternative: Simple auto-managed network/,/# *name: accounting_panel_network/s/^# *//' docker-compose.yml
+    # Check if we're already using the simple configuration
+    if grep -q "name: accounting_panel_network" docker-compose.yml; then
+        echo -e "${YELLOW}Removing custom network name for better service discovery...${NC}"
+        sed -i.tmp '/name: accounting_panel_network/d' docker-compose.yml
+        rm docker-compose.yml.tmp 2>/dev/null || true
+        echo -e "${GREEN}✅ Updated to auto-managed network${NC}"
+    else
+        echo -e "${GREEN}✅ Already using auto-managed network${NC}"
+    fi
     
-    rm docker-compose.yml.tmp
-    
-    echo -e "${GREEN}✅ Switched to auto-managed network${NC}"
     echo -e "${YELLOW}💡 Backup saved as docker-compose.yml.backup${NC}"
 }
 
