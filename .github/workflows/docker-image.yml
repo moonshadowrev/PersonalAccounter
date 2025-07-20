@@ -1,9 +1,9 @@
 name: Docker Image CI
-
+permissions:
+  contents: read
 on:
   push:
-    tags: [ 'v*' ]  # Trigger on tags starting with 'v'
-
+    tags: [ 'v*' ]
 jobs:
   build:
     runs-on: ubuntu-latest
