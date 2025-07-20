@@ -846,8 +846,11 @@ main() {
     update_caddy_config
     
     # Generate SSL certificates if needed
+    # Note: When using self-signed, Caddy handles certificate generation with 'tls internal'
+    # The generate_self_signed_ssl function is available but not needed for Caddy setup
     if [[ "$USE_HTTPS" == true && "$SSL_TYPE" == "self-signed" ]]; then
-        generate_self_signed_ssl
+        print_info "Using Caddy's internal certificate generation (tls internal)"
+        print_info "Certificates will be generated automatically when containers start"
     fi
     
     # Deploy application
