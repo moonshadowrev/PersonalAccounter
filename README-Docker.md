@@ -1,6 +1,14 @@
-# Accounting Panel - Docker Deployment Guide
+# PersonalAccounter v1.0.2 - Docker Deployment Guide
 
-This guide provides comprehensive instructions for deploying the Accounting Panel using Docker in both development and production environments.
+This guide provides comprehensive instructions for deploying PersonalAccounter using Docker in both development and production environments.
+
+## 🆕 What's New in v1.0.2
+
+- **🌐 Enhanced Network Compatibility**: Improved subnet configuration to avoid conflicts
+- **🛠️ CLI Management Tools**: New `control-docker` script for easy container management
+- **🔧 Network Diagnostics**: `network-check.sh` tool for troubleshooting network issues
+- **📊 Adminer Integration**: Lightweight database management interface
+- **⚡ Auto-Permission Fixes**: Automatic log directory permission resolution
 
 ## 🚀 Quick Start
 
@@ -191,6 +199,47 @@ The setup script supports various options:
 
 ## 🛠️ Management Commands
 
+### 🆕 New CLI Tools (v1.0.2)
+
+#### control-docker Script
+Easy container management without Docker expertise:
+
+```bash
+# User management
+./control-docker user list
+./control-docker user create "John Doe" "john@example.com" "password" "admin"
+
+# Database operations  
+./control-docker migrate run
+./control-docker db status
+
+# Interactive shell access
+./control-docker shell
+
+# Get help
+./control-docker help
+```
+
+#### network-check.sh Script
+Network troubleshooting and configuration:
+
+```bash
+# Check for network conflicts
+./network-check.sh check
+
+# Show configuration options
+./network-check.sh suggest
+
+# Auto-fix network issues (maximum compatibility)
+./network-check.sh auto
+
+# Use custom subnet to avoid conflicts
+./network-check.sh subnet 172.29.0.0/24 172.29.0.1
+
+# Clean up existing networks
+./network-check.sh fix
+```
+
 ### Service Management
 
 ```bash
@@ -244,6 +293,15 @@ curl http://localhost/health
 
 ### Database Management
 
+#### 🆕 Adminer Web Interface (v1.0.2)
+Access the lightweight database management interface:
+- **URL**: http://localhost:8080
+- **Server**: `database` (or leave blank)
+- **Username**: `accounting_user` or `root`
+- **Password**: Check your `.env` file for credentials
+- **Database**: `accounting_panel`
+
+#### Command Line Access
 ```bash
 # Access database directly
 docker compose exec database mysql -u root -p
@@ -256,6 +314,9 @@ docker compose exec -T database mysql -u root -p accounting_panel < backup.sql
 
 # View database logs
 docker compose logs database
+
+# 🆕 Start Adminer if not running
+docker compose up -d adminer
 ```
 
 ## 🔍 Monitoring and Debugging
@@ -437,7 +498,32 @@ netstat -tulpn | grep :80
 HTTP_PORT=8080 HTTPS_PORT=8443 docker compose up -d
 ```
 
-#### 3. Database Connection Issues
+#### 🆕 3. Network Conflicts (v1.0.2)
+
+Use the new network diagnostic tool for automatic resolution:
+
+```bash
+# Check for network conflicts
+./network-check.sh check
+
+# Auto-fix network issues (recommended)
+./network-check.sh auto
+
+# Use custom subnet if conflicts persist
+./network-check.sh subnet 172.29.0.0/24 172.29.0.1
+
+# Manual network cleanup
+./network-check.sh fix
+docker compose down
+docker compose up -d
+```
+
+Common network conflict scenarios:
+- **Corporate VPNs**: Often use 172.20.x.x subnets
+- **Docker Desktop**: May conflict with default ranges
+- **Multiple Docker Projects**: Subnet overlap between projects
+
+#### 4. Database Connection Issues
 
 ```bash
 # Check database health
@@ -450,12 +536,17 @@ docker compose restart database
 docker compose logs database
 ```
 
-#### 4. Permission Errors
+#### 5. Permission Errors
+
+🆕 **v1.0.2 Auto-Fix**: The application now automatically fixes log permission issues on startup.
 
 ```bash
-# Fix file permissions
+# Manual permission fixes (if needed)
 sudo chown -R $USER:$USER .
 docker compose exec app chown -R www-data:www-data /var/www/html
+
+# 🆕 Restart to trigger auto-fix
+docker compose restart app
 ```
 
 #### 5. CSRF Token Issues

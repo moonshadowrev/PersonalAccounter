@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accounting Panel - Professional Financial Management</title>
-    <meta name="description" content="A comprehensive, secure, and modern accounting panel for personal and business financial management. Built with PHP 8.2 and Docker.">
+    <title>PersonalAccounter v1.0.2 - Professional Financial Management</title>
+    <meta name="description" content="A comprehensive, secure, and modern accounting panel for personal and business financial management. Built with PHP 8.2, Docker, and enhanced networking. v1.0.2 features improved CLI tools and network compatibility.">
     <meta name="keywords" content="accounting, financial management, expense tracking, invoicing, PHP, Docker, self-hosted">
     <meta name="author" content="Accounting Panel">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Accounting Panel - Professional Financial Management">
-    <meta property="og:description" content="A comprehensive, secure, and modern accounting panel for personal and business financial management.">
+    <meta property="og:title" content="PersonalAccounter v1.0.2 - Professional Financial Management">
+    <meta property="og:description" content="A comprehensive, secure, and modern accounting panel for personal and business financial management. v1.0.2 features enhanced Docker networking and CLI management tools.">
     <meta property="og:image" content="https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/.github/screenshots/screenshot.png">
     <meta property="og:url" content="https://moonshadowrev.github.io/PersonalAccounter/">
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="Accounting Panel - Professional Financial Management">
-    <meta property="twitter:description" content="A comprehensive, secure, and modern accounting panel for personal and business financial management.">
+    <meta property="twitter:title" content="PersonalAccounter v1.0.2 - Professional Financial Management">
+    <meta property="twitter:description" content="A comprehensive, secure, and modern accounting panel for personal and business financial management. v1.0.2 features enhanced Docker networking and CLI management tools.">
     <meta property="twitter:image" content="https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/.github/screenshots/screenshot.png">
     
     <link rel="canonical" href="https://moonshadowrev.github.io/PersonalAccounter/">
@@ -415,7 +415,7 @@
     <!-- Header -->
     <header class="header">
         <nav class="nav container">
-            <div class="logo">📊 Accounting Panel</div>
+                            <div class="logo">📊 PersonalAccounter v1.0.2</div>
             <ul class="nav-links">
                 <li><a href="#features">Features</a></li>
                 <li><a href="#screenshots">Screenshots</a></li>
@@ -431,7 +431,7 @@
         <div class="container">
             <div class="hero-content animate-fade-in">
                 <h1>Professional Financial Management</h1>
-                <p>A comprehensive, secure, and modern accounting panel for personal and business financial management. Built with PHP 8.2, Docker, and modern web technologies.</p>
+                <p>A comprehensive, secure, and modern accounting panel for personal and business financial management. Built with PHP 8.2, Docker, and modern web technologies. Version 1.0.2 introduces enhanced network compatibility, CLI management tools, and improved database administration.</p>
                 <div class="cta-buttons">
                     <a href="#installation" class="btn btn-primary">
                         🚀 Get Started
@@ -493,6 +493,21 @@
                     <span class="feature-icon">🔧</span>
                     <h3>Self-Hosted</h3>
                     <p>Complete control over your data with easy Docker deployment and no vendor lock-in.</p>
+                </div>
+                <div class="feature-card animate-fade-in" style="border: 2px solid #10b981;">
+                    <span class="feature-icon">🌐</span>
+                    <h3>Enhanced Networking <span style="color: #10b981; font-size: 0.8em;">v1.0.2</span></h3>
+                    <p>Improved Docker network configuration with conflict detection and customizable subnets for better compatibility.</p>
+                </div>
+                <div class="feature-card animate-fade-in" style="border: 2px solid #10b981;">
+                    <span class="feature-icon">💻</span>
+                    <h3>CLI Management Tools <span style="color: #10b981; font-size: 0.8em;">v1.0.2</span></h3>
+                    <p>New `control-docker` script for easy container management without Docker expertise required.</p>
+                </div>
+                <div class="feature-card animate-fade-in" style="border: 2px solid #10b981;">
+                    <span class="feature-icon">🔍</span>
+                    <h3>Network Diagnostics <span style="color: #10b981; font-size: 0.8em;">v1.0.2</span></h3>
+                    <p>Advanced `network-check.sh` tool for troubleshooting and resolving Docker network conflicts automatically.</p>
                 </div>
             </div>
         </div>
@@ -604,6 +619,21 @@ open http://localhost</pre>
                     <li>Linux, macOS, or Windows with WSL2</li>
                 </ul>
             </div>
+
+            <h3 style="margin-top: 2rem; color: var(--primary-color);">🆕 New Management Tools (v1.0.2)</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyToClipboard('tools-cmd')">Copy</button>
+                <pre id="tools-cmd"># Easy container management
+./control-docker user list              # List users
+./control-docker migrate run            # Run migrations
+./control-docker shell                  # Interactive shell
+
+# Network troubleshooting
+./network-check.sh check                # Check conflicts
+./network-check.sh auto                 # Auto-fix issues
+
+# Database management at http://localhost:8080</pre>
+            </div>
         </div>
     </section>
 
@@ -619,7 +649,7 @@ open http://localhost</pre>
                 </div>
             </div>
             <p style="color: var(--text-secondary);">
-                © 2025 Accounting Panel. Open Source Financial Management.
+                © 2025 PersonalAccounter v1.0.2. Open Source Financial Management.
             </p>
         </div>
     </footer>

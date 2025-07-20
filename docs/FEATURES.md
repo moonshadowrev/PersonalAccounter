@@ -1,19 +1,35 @@
-# PersonalAccounter Feature Wiki
+# PersonalAccounter Feature Wiki v1.0.2
 
 This comprehensive guide covers all features available in PersonalAccounter and provides detailed implementation examples for extending the application.
 
+## 🆕 Version 1.0.2 New Features
+
+### Enhanced Docker & Network Management
+- **Improved Network Configuration**: Customizable Docker subnets to avoid conflicts with corporate networks and VPNs
+- **CLI Management Tools**: New `control-docker` script for easy container operations without Docker expertise
+- **Network Diagnostics**: Advanced `network-check.sh` tool for automated conflict detection and resolution
+- **Database Management**: Adminer integration for lightweight database administration
+- **Auto-Permission Fixes**: Automatic resolution of log directory permission issues on container startup
+
+### New Management Scripts
+- `./control-docker` - Docker container management wrapper
+- `./network-check.sh` - Network conflict diagnosis and resolution
+- Enhanced `setup.sh` with improved environment variable handling
+
 ## Table of Contents
 
-1. [Dashboard & Analytics](#dashboard--analytics)
-2. [Expense Management](#expense-management)
-3. [Payment Methods](#payment-methods)
-4. [Subscription Management](#subscription-management)
-5. [Categories & Tags](#categories--tags)
-6. [User Management & Authentication](#user-management--authentication)
-7. [Reporting & Export](#reporting--export)
-8. [API System](#api-system)
-9. [Security Features](#security-features)
-10. [Extending the Application](#extending-the-application)
+1. [v1.0.2 New Features](#-version-102-new-features)
+2. [Dashboard & Analytics](#dashboard--analytics)
+3. [Expense Management](#expense-management)
+4. [Payment Methods](#payment-methods)
+5. [Subscription Management](#subscription-management)
+6. [Categories & Tags](#categories--tags)
+7. [User Management & Authentication](#user-management--authentication)
+8. [Reporting & Export](#reporting--export)
+9. [API System](#api-system)
+10. [Security Features](#security-features)
+11. [Docker & Network Management](#docker--network-management-v102)
+12. [Extending the Application](#extending-the-application)
 
 ---
 
@@ -1135,6 +1151,119 @@ class FieldEncryption {
     }
 }
 ```
+
+---
+
+## Docker & Network Management (v1.0.2)
+
+### Enhanced Network Configuration
+
+PersonalAccounter v1.0.2 introduces advanced Docker networking capabilities to ensure compatibility across different environments and avoid network conflicts.
+
+#### Customizable Network Settings
+
+The application now supports customizable Docker subnet configuration through environment variables:
+
+```env
+# Docker Network Configuration
+DOCKER_SUBNET=172.28.0.0/24
+DOCKER_GATEWAY=172.28.0.1
+```
+
+#### Benefits:
+- **Conflict Avoidance**: Prevents conflicts with corporate VPNs and existing networks
+- **Flexible Configuration**: Easy to customize for different deployment environments
+- **Auto-Detection**: Automatic conflict detection and resolution capabilities
+
+### CLI Management Tools
+
+#### control-docker Script
+
+The new `control-docker` script provides an easy-to-use interface for managing Docker containers without requiring Docker expertise:
+
+```bash
+# User management
+./control-docker user list
+./control-docker user create "John Doe" "john@example.com" "password" "admin"
+
+# Database operations
+./control-docker migrate run
+./control-docker db status
+
+# Interactive access
+./control-docker shell
+```
+
+#### Features:
+- **Automatic Service Management**: Starts CLI service automatically when needed
+- **Cross-Platform Compatibility**: Works on Linux, macOS, and Windows
+- **Error Handling**: Comprehensive error checking and user feedback
+
+### Network Diagnostic Tools
+
+#### network-check.sh Script
+
+Advanced network troubleshooting tool for diagnosing and resolving Docker network issues:
+
+```bash
+# Check for conflicts
+./network-check.sh check
+
+# Show available options
+./network-check.sh suggest
+
+# Auto-fix issues (maximum compatibility)
+./network-check.sh auto
+
+# Use custom subnet
+./network-check.sh subnet 172.29.0.0/24 172.29.0.1
+
+# Clean up existing networks
+./network-check.sh fix
+```
+
+#### Capabilities:
+- **Conflict Detection**: Identifies existing network conflicts
+- **Auto-Resolution**: Automatically resolves common network issues
+- **Custom Configuration**: Supports custom subnet configuration
+- **Cross-Platform**: Works on different operating systems with appropriate tooling
+
+### Database Management with Adminer
+
+#### Lightweight Database Administration
+
+PersonalAccounter v1.0.2 replaces phpMyAdmin with Adminer for better compatibility and performance:
+
+- **URL**: http://localhost:8080
+- **Features**:
+  - Lightweight and fast
+  - Better cross-platform compatibility
+  - Modern interface
+  - Advanced SQL capabilities
+
+#### Connection Settings:
+```
+Server: database
+Username: accounting_user (or root)
+Password: [from .env file]
+Database: accounting_panel
+```
+
+### Auto-Permission Fixes
+
+The application now automatically resolves common permission issues that can occur with Docker volume mounting:
+
+#### Startup Script Enhancements:
+```bash
+# Automatic permission fixing on container startup
+chown -R www-data:www-data /var/www/html/logs
+chmod -R 755 /var/www/html/logs
+```
+
+#### Benefits:
+- **Seamless Volume Mounting**: Works across different host systems
+- **No Manual Intervention**: Automatically fixes permission issues
+- **Persistent Storage**: Maintains data integrity across container restarts
 
 ---
 

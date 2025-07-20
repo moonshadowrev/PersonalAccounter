@@ -1,8 +1,196 @@
-# PersonalAccounter
+# PersonalAccounter v1.0.2
 
 A comprehensive PHP-based personal and business accounting management system with powerful expense tracking, subscription management, and reporting capabilities.
 
-# Auto Deploy
+## 🆕 Latest Updates (v1.0.2)
+- **🌐 Enhanced Docker Network Compatibility** - Improved subnet configuration to avoid conflicts
+- **🛠️ New CLI Management Tools** - `control-docker` script for easy container management  
+- **🔧 Network Diagnostic Tools** - `network-check.sh` for troubleshooting network conflicts
+- **📊 Adminer Integration** - Lightweight database management (replaces phpMyAdmin)
+- **⚡ Auto-Permission Fixes** - Automatic log directory permission resolution on startup
+- **🎛️ Flexible Environment Configuration** - Customizable Docker network settings
+
+# 🚀 Installation Options
+
+Choose the installation method that best fits your needs:
+
+| Method | Best For | Pros | Cons |
+|--------|----------|------|------|
+| **🐳 Docker** | Production, Quick Setup | Easy deployment, Isolated environment, All dependencies included | Requires Docker knowledge, Resource overhead |
+| **📦 Local PHP** | Development, Customization | Full control, Better debugging, Native performance | Manual dependency management, More setup steps |
+
+## 📦 Local PHP Setup (Native Installation)
+
+For developers who prefer local PHP environment or want to contribute to the project:
+
+### Prerequisites
+- **PHP 8.0+** with required extensions:
+  - `pdo_mysql`, `json`, `openssl`, `mbstring`, `gd`, `curl`, `zip`
+- **MySQL 8.0+** or **MariaDB 10.4+**
+- **Composer** (for dependency management)
+- **Web server** (Apache/Nginx) or PHP's built-in server
+
+### Required PHP Extensions Installation
+```bash
+# Ubuntu/Debian
+sudo apt-get install php php-mysql php-gd php-curl php-zip php-mbstring php-json php-openssl
+
+# CentOS/RHEL
+sudo yum install php php-mysql php-gd php-curl php-zip php-mbstring php-json php-openssl
+
+# macOS (using Homebrew)
+brew install php composer
+brew install mysql
+
+# Windows (using Chocolatey)
+choco install php composer mysql
+```
+
+### Quick Setup Commands
+```bash
+# Clone the repository
+git clone https://github.com/moonshadowrev/PersonalAccounter.git
+cd PersonalAccounter
+
+# Install PHP dependencies
+composer install
+
+# Copy and configure environment
+cp .env.example .env
+# Edit .env file with your database credentials and settings
+
+# Create database
+mysql -u root -p -e "CREATE DATABASE accounting_panel;"
+mysql -u root -p -e "CREATE USER 'accounting_user'@'localhost' IDENTIFIED BY 'your_password';"
+mysql -u root -p -e "GRANT ALL PRIVILEGES ON accounting_panel.* TO 'accounting_user'@'localhost';"
+
+# Run database migrations
+php control migrate run
+
+# Create admin user
+php control user admin
+
+# Set proper permissions
+chmod 755 -R .
+chmod 777 -R logs/
+chmod 777 -R sessions/
+chmod 777 -R public/uploads/
+
+# Start development server
+php -S localhost:8000 -t public/
+```
+
+### Web Server Configuration (Optional)
+
+#### Apache (.htaccess)
+The project includes an `.htaccess` file for Apache. Ensure mod_rewrite is enabled:
+```bash
+sudo a2enmod rewrite
+sudo systemctl restart apache2
+```
+
+#### Nginx
+Create a server block configuration:
+```nginx
+server {
+    listen 80;
+    server_name localhost;
+    root /path/to/PersonalAccounter/public;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.0-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+```
+
+#### PHP Built-in Server (Development Only)
+```bash
+# Start on different port if needed
+php -S localhost:8080 -t public/
+
+# Or bind to all interfaces
+php -S 0.0.0.0:8000 -t public/
+```
+
+### Environment Configuration for Local Setup
+Edit your `.env` file with local database settings:
+```env
+# Application
+APP_ENV=development
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+APP_DOMAIN=localhost
+
+# Database (Local)
+DB_HOST=localhost
+DB_NAME=accounting_panel
+DB_USER=accounting_user
+DB_PASS=your_password
+DB_PORT=3306
+
+# Security
+SESSION_LIFETIME=0
+SESSION_SECURE=false
+SESSION_SAMESITE=Lax
+```
+
+### Troubleshooting Local Setup
+
+#### Common Issues
+
+**Database Connection Failed**
+```bash
+# Check MySQL service
+sudo systemctl status mysql
+sudo systemctl start mysql
+
+# Test database connection
+mysql -u accounting_user -p accounting_panel -e "SELECT 1;"
+```
+
+**Permission Denied Errors**
+```bash
+# Fix directory permissions
+sudo chown -R $USER:www-data .
+chmod 755 -R .
+chmod 777 -R logs/ sessions/ public/uploads/
+```
+
+**Missing PHP Extensions**
+```bash
+# Check installed extensions
+php -m | grep -E "(mysql|gd|curl|mbstring)"
+
+# Install missing extensions (Ubuntu/Debian example)
+sudo apt-get install php-mysql php-gd php-curl php-mbstring
+```
+
+**Composer Issues**
+```bash
+# Update Composer
+composer self-update
+
+# Clear cache and reinstall
+composer clear-cache
+composer install --no-cache
+```
+
+### Local Development Tips
+- Use `APP_DEBUG=true` for detailed error messages
+- Check `logs/app-*.log` for application errors
+- Use `php control db status` to verify database connectivity
+- Run `php control user list` to check user accounts
+
+## 🐳 Docker Setup (Recommended for Production)
+
+### Auto Deploy
 Accounting Panel Docker Setup Script
 Production-ready automated deployment with secure configuration
 
@@ -14,11 +202,30 @@ Usage:
    wget -qO- https://raw.githubusercontent.com/moonshadowrev/PersonalAccounter/main/setup.sh | bash
 ```
 
-# Quick install 
+### Quick Docker Install 
 ```bash
 git clone https://github.com/moonshadowrev/PersonalAccounter
 cd PersonalAccounter
 bash ./setup.sh
+```
+
+## 🛠️ New Management Tools (v1.0.2)
+
+### Docker CLI Management
+```bash
+# Easy container management without entering containers
+./control-docker user list                    # List all users
+./control-docker migrate run                  # Run database migrations  
+./control-docker db status                    # Check database status
+./control-docker shell                        # Open interactive shell
+```
+
+### Network Troubleshooting
+```bash
+# Diagnose and fix Docker network conflicts
+./network-check.sh check                      # Check for network conflicts
+./network-check.sh auto                       # Switch to auto-managed networks
+./network-check.sh subnet 172.29.0.0/24 172.29.0.1  # Use custom subnet
 ```
 
 ## 🌟 Features
@@ -63,6 +270,14 @@ bash ./setup.sh
 - **Rate limiting** and comprehensive error handling
 - **Webhooks support** for external integrations
 - **Comprehensive endpoints** for all application features
+
+### 🐳 **Docker & Development** (v1.0.2)
+- **Enhanced Network Configuration** with customizable subnets to avoid conflicts
+- **CLI Management Tools** for easy container operations without Docker knowledge
+- **Network Diagnostic Tools** for troubleshooting deployment issues
+- **Adminer Database Management** - lightweight alternative to phpMyAdmin
+- **Auto-Permission Fixes** for seamless volume mounting across systems
+- **Cross-Platform Compatibility** with improved architecture support
 
 ## 📸 Screenshots
 
@@ -149,6 +364,10 @@ API_MAX_RATE_LIMIT=1000
 LOG_CHANNEL=file
 LOG_LEVEL=warning
 LOG_MAX_FILES=5
+
+# Docker Network Configuration (v1.0.2)
+DOCKER_SUBNET=172.28.0.0/24
+DOCKER_GATEWAY=172.28.0.1
 ```
 
 ### 4. Database Setup
@@ -219,6 +438,22 @@ Navigate to `https://your-domain.com` and log in with your admin credentials.
 2. Add your recurring services and subscriptions
 3. Set billing cycles and amounts
 
+## 📊 Database Management (v1.0.2)
+
+### Adminer Interface
+Access the lightweight database management interface:
+- **URL**: http://localhost:8080
+- **Database Server**: `database` (or leave blank)
+- **Username**: `accounting_user` or `root`
+- **Password**: Check your `.env` file for `DB_PASS` or `DB_ROOT_PASSWORD`
+- **Database**: `accounting_panel`
+
+Adminer provides:
+- **SQL Query Interface** for advanced database operations
+- **Table Management** with visual data browsing
+- **Import/Export** functionality for database backups
+- **Cross-Platform Compatibility** (replaces phpMyAdmin)
+
 ## 📱 Usage
 
 ### Managing Expenses
@@ -242,6 +477,7 @@ Navigate to `https://your-domain.com` and log in with your admin credentials.
 
 ## 🔧 Command Line Interface
 
+### Native CLI Tool
 The application includes a powerful CLI tool:
 
 ```bash
@@ -265,6 +501,41 @@ php control db status
 # Fake data generation
 php control faker all
 php control faker generate --users=10 --expenses=100
+```
+
+### Docker CLI Tool (v1.0.2)
+For Docker deployments, use the enhanced `control-docker` wrapper:
+
+```bash
+# All the same commands but running in Docker containers
+./control-docker migrate run
+./control-docker user list
+./control-docker user create "John Doe" "john@example.com" "password" "admin"
+./control-docker db status
+
+# Special Docker commands
+./control-docker shell              # Open interactive container shell
+./control-docker help               # Show all available commands
+```
+
+### Network Management Tools (v1.0.2)
+Diagnose and resolve Docker network conflicts:
+
+```bash
+# Check for network conflicts
+./network-check.sh check
+
+# Show configuration options  
+./network-check.sh suggest
+
+# Auto-fix conflicts (maximum compatibility)
+./network-check.sh auto
+
+# Use custom subnet
+./network-check.sh subnet 172.29.0.0/24 172.29.0.1
+
+# Clean up networks
+./network-check.sh fix
 ```
 
 ## 🔌 API Usage
@@ -317,11 +588,14 @@ PersonalAccounter/
 
 ### Technology Stack
 - **Backend**: PHP 8.0+ with custom MVC framework
-- **Database**: MySQL with Medoo ORM
+- **Database**: MySQL/MariaDB with Medoo ORM
 - **Frontend**: HTML5, CSS3, JavaScript (Vanilla JS)
 - **Authentication**: Custom session-based auth with 2FA
 - **API**: RESTful with OpenAPI documentation
 - **Security**: CSRF protection, XSS prevention, input validation
+- **Containerization**: Docker with optimized networking (v1.0.2)
+- **Database Management**: Adminer web interface (v1.0.2)
+- **CLI Tools**: Enhanced Docker and network management (v1.0.2)
 
 ## 🌍 Localization
 
