@@ -8,7 +8,7 @@
         "catfan/medoo": "^2.2",
         "bramus/router": "^1.6",
         "monolog/monolog": "^3.9",
-        "phpoffice/phpspreadsheet": "^4.3",
+        "phpoffice/phpspreadsheet": "^5.0",
         "pragmarx/google2fa": "^8.0",
         "endroid/qr-code": "^5.0",
         "zircote/swagger-php": "^4.8",
